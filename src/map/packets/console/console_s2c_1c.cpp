@@ -408,11 +408,22 @@ auto shopBuy(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 // client's entities, and the client never sends its end: the player stays locked (Dkhaaya, zone 50).
 // Such an event is not sent, and the server's side of it is closed without its finish handler, as if
 // it never started (no quest progress, no reward).
+// A dropped event becomes a 0x052 release (Mode 0). 8700 (Home Point) is sent as the zone's 2010
+// Home Point event.
 template <size_t kEventNumOffset>
 auto eventGuard(MapSession* PSession, CBasicPacket& packet) -> Result
 {
     const auto zone  = packet.ref<uint16>(kEventNumOffset);
     const auto event = packet.ref<uint16>(kEventNumOffset + 2);
+    if (event == ids::kHomePointEvent)
+    {
+        if (const auto old = ids::homePointEvent(zone))
+        {
+            packet.ref<uint16>(kEventNumOffset + 2) = *old;
+            return Result::Rewritten;
+        }
+    }
+
     if (ids::hasEvent(zone, event))
     {
         return Result::Pass;
@@ -424,7 +435,11 @@ auto eventGuard(MapSession* PSession, CBasicPacket& packet) -> Result
     {
         PChar->endCurrentEvent();
     }
-    return Result::Drop;
+
+    packet.setType(0x052);
+    packet.setSize(0x08);
+    packet.ref<uint32>(0x04) = 0;
+    return Result::Rewritten;
 }
 
 template <size_t kMesNumOffset>

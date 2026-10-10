@@ -55,6 +55,10 @@ auto hasItem(uint16 itemId) -> bool;
 // map every event is known.
 auto hasEvent(uint16 zoneId, uint16 eventId) -> bool;
 
+// Home Point #1 (8700): 2010 zone-specific Yes/No event (result 0 Yes, 1 No), or nullopt if 8700 exists or no HP.
+constexpr uint16 kHomePointEvent = 8700;
+auto homePointEvent(uint16 zoneId) -> std::optional<uint16>;
+
 // Static entities (NPCs, mobs, doors: UniqueNo 0x01000000 | zone << 12 | index, ActIndex = index).
 // The zone's name list in the 2010 DATs has entities inserted since, so indices shift. The map is
 // aligned on the names (tools/entity_map.py -> entity_map.bin). Anything that is not a static

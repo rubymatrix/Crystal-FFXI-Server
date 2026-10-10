@@ -20,7 +20,10 @@
 */
 
 #include "console_groups.h"
+#include "console_ids.h"
 
+#include "entities/char_entity.h"
+#include "event_info.h"
 #include "map_session.h"
 
 #include <algorithm>
@@ -120,6 +123,30 @@ auto equipSet(MapSession* /* PSession */, CBasicPacket& packet) -> Result
     rw.clear(0x08);
     rw.move(0x04, 0x04, 2);
     rw.out<uint8>(0x06, kInventory);
+    return Result::Rewritten;
+}
+
+// 0x05B EVENTEND: EndPara +8, Mode +0xE, EventNum +0x10, EventPara +0x12. Home Point: 2010 event -> 8700;
+// on end, 2010 Yes (0) -> SET_HOMEPOINT (1), anything else -> 0.
+auto eventEnd(MapSession* PSession, CBasicPacket& packet) -> Result
+{
+    auto* PChar = PSession->PChar.get();
+    if (!PChar || !PChar->currentEvent || PChar->currentEvent->eventId != ids::kHomePointEvent)
+    {
+        return Result::Pass;
+    }
+
+    const auto old = ids::homePointEvent(packet.ref<uint16>(0x10));
+    if (!old || packet.ref<uint16>(0x12) != *old)
+    {
+        return Result::Pass;
+    }
+
+    packet.ref<uint16>(0x12) = ids::kHomePointEvent;
+    if (packet.ref<uint16>(0x0E) == 0)
+    {
+        packet.ref<uint32>(0x08) = packet.ref<uint32>(0x08) == 0 ? 1 : 0;
+    }
     return Result::Rewritten;
 }
 
@@ -370,6 +397,7 @@ void registerC2S(compat::Profile& p)
     p.c2s(0x01F, &gmCommand);
     p.c2s(0x04E, &auction);
     p.c2s(0x050, &equipSet);
+    p.c2s(0x05B, &eventEnd);
     p.c2s(0x061, &cliStatus);
     p.c2s(0x077, &groupChange2);
     p.c2s(0x083, &shopBuy);
