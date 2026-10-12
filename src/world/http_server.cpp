@@ -173,6 +173,12 @@ HTTPServer::HTTPServer(Scheduler& scheduler)
             httpServer_.set_error_handler(
                 [](const httplib::Request& /*req*/, httplib::Response& res)
                 {
+                    // A route that answered with its own body (the lobby API's JSON refusals) keeps it
+                    if (!res.body.empty())
+                    {
+                        return;
+                    }
+
                     auto str = fmt::format("<p>Error Status: <span style='color:red;'>{} ({})</span></p>",
                                            res.status,
                                            httplib::status_message(res.status));
