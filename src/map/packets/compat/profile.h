@@ -71,10 +71,12 @@ public:
     {
         return name_;
     }
+
     auto platform() const -> Platform
     {
         return platform_;
     }
+
     auto description() const -> const std::string&
     {
         return description_;
@@ -85,6 +87,7 @@ public:
     {
         return versions_;
     }
+
     void addVersion(uint32 version);
 
     // Lobby version strings (the client's patch.ver, e.g. "20100904_2") this profile serves; checked before Ver
@@ -92,6 +95,7 @@ public:
     {
         return builds_;
     }
+
     void addBuild(std::string build);
 
     // Registration (profile factories only)

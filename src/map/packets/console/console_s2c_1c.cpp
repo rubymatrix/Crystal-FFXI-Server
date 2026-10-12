@@ -149,9 +149,9 @@ auto battleMessage2(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 // Reads the BATTLE2 bit stream. Bits are LSB-first within each byte and within each field.
 struct BitReader
 {
-    const uint8* data;
-    size_t       pos;
-    size_t       end;
+    const uint8* data{ nullptr };
+    size_t       pos{ 0 };
+    size_t       end{ 0 };
     bool         ok{ true };
 
     auto get(const uint8 bits) -> uint32
@@ -174,9 +174,9 @@ struct BitReader
 // Writes the BATTLE2 bit stream, in the same bit order as BitReader.
 struct BitWriter
 {
-    uint8* data;
-    size_t pos;
-    size_t end;
+    uint8* data{ nullptr };
+    size_t pos{ 0 };
+    size_t end{ 0 };
     bool   ok{ true };
 
     void put(const uint32 v, const uint8 bits)
