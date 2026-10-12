@@ -75,6 +75,13 @@ xi_add_executable(xi_test testserver.rc
 )
 add_dependencies(xi_test data_schema_generate)
 
+# The C++ modules in modules/init.txt, as in xi_map. The tests load the Lua modules from the same list,
+# and those call bindings the C++ modules add (player:setAccountVar...). Like the Catch2 TUs, modules
+# register through static initializers, so they go in the executable.
+xi_collect_modules(module_sources module_include_dirs module_cmakelists)
+target_sources(xi_test PRIVATE ${module_sources})
+target_include_directories(xi_test PRIVATE ${module_include_dirs})
+
 xi_add_library(xi_test_lib ${SOURCES})
 target_include_directories(xi_test_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(xi_test_lib
