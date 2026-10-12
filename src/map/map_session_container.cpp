@@ -241,7 +241,9 @@ void MapSessionContainer::cleanupSessions(IPP mapIPP)
                 // session owns the accounts_sessions row now: deleting it would lose the key its next zone-in needs.
                 if (map_session_data->charID != 0 &&
                     std::ranges::any_of(sessions_, [&](const auto& entry)
-                                        { return entry.second.get() != map_session_data.get() && entry.second->charID == map_session_data->charID; }))
+                                        {
+                                            return entry.second.get() != map_session_data.get() && entry.second->charID == map_session_data->charID;
+                                        }))
                 {
                     ShowInfoFmt("map_cleanup: session {} (charid {}) was replaced by a newer session; leaving its account session alone", map_session_data->client_ipp.toString(), map_session_data->charID);
                     otherMap = true;
