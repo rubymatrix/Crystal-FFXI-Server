@@ -87,7 +87,7 @@ public:
     }
     void addVersion(uint32 version);
 
-    // Lobby version strings (the client's patch.ver, e.g. "20160203_0") this profile serves; checked before Ver
+    // Lobby version strings (the client's patch.ver, e.g. "20100904_2") this profile serves; checked before Ver
     auto builds() const -> const std::vector<std::string>&
     {
         return builds_;
@@ -100,11 +100,6 @@ public:
     void handles(const uint16* ids, size_t count); // ids the client registers a handler for
     void s2cPass(Translator fn);                   // after the per-id s2c translator, on every packet it kept
     void c2sPass(Translator fn);                   // after the per-id c2s translator
-
-    // The translator registered for an id (nullptr: none), so a later build's profile can take over the
-    // ones that still apply to it
-    auto s2cTranslator(uint16 id) const -> Translator;
-    auto c2sTranslator(uint16 id) const -> Translator;
 
     // Does the client have a handler for this s2c id? Unhandled ids are dropped.
     auto clientHandles(uint16 id) const -> bool;

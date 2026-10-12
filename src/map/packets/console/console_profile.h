@@ -32,9 +32,4 @@ namespace console
 // ps2_c2s.cpp), the ids it has a handler for, and its id maps in res/compat/ps2-20100904/.
 auto makeProfile20100904() -> std::unique_ptr<compat::Profile>;
 
-// The final console clients, PS2 patch 20160203_0 and Xbox 360 40160203_0: one netcode (console_2016.cpp and
-// the 2010 translators that still apply), each with its own id maps (res/compat/ps2-20160203/,
-// res/compat/x360-40160203/). Pass Platform::PS2 or Platform::Xbox360.
-auto makeProfile20160203(compat::Platform platform) -> std::unique_ptr<compat::Profile>;
-
 } // namespace console

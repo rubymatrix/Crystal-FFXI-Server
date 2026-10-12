@@ -45,8 +45,6 @@ auto buildProfiles() -> std::vector<std::unique_ptr<Profile>>
 {
     std::vector<std::unique_ptr<Profile>> out;
     out.push_back(console::makeProfile20100904());
-    out.push_back(console::makeProfile20160203(Platform::PS2));
-    out.push_back(console::makeProfile20160203(Platform::Xbox360));
 
     // res/compat/<profile>/versions.txt: the 0x00A Ver values of that build, one per line (hex with 0x, or
     // decimal; # starts a comment). The login logs every client's Ver, so a new build is pinned without a
@@ -67,7 +65,7 @@ auto buildProfiles() -> std::vector<std::unique_ptr<Profile>>
             const auto e     = entry.find_last_not_of(" \t\r");
             entry            = entry.substr(0, e + 1);
 
-            // a whole number (0x... or decimal) is a Ver; anything else ("20160203_0") a lobby version string
+            // a whole number (0x... or decimal) is a Ver; anything else ("20100904_2") a lobby version string
             size_t used = 0;
             try
             {
@@ -174,16 +172,6 @@ void Profile::s2cPass(const Translator fn)
 void Profile::c2sPass(const Translator fn)
 {
     c2sPasses_.push_back(fn);
-}
-
-auto Profile::s2cTranslator(const uint16 id) const -> Translator
-{
-    return s2c_[id & 0x1FF];
-}
-
-auto Profile::c2sTranslator(const uint16 id) const -> Translator
-{
-    return c2s_[id & 0x1FF];
 }
 
 auto Profile::clientHandles(const uint16 id) const -> bool

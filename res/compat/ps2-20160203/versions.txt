@@ -1,2 +1,0 @@
-# lobby version strings (the client's patch.ver) and/or 0x00A Ver values this profile serves
-20160203_0

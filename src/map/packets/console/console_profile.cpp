@@ -20,7 +20,6 @@
 */
 
 #include "console_profile.h"
-#include "console_2016.h"
 #include "console_entities.h"
 #include "console_groups.h"
 #include "console_items.h"
@@ -46,92 +45,19 @@ constexpr uint16 kHandled[] = {
     0x0E2, 0x0E6, 0x0F4, 0x0F5, 0x0F6, 0x0F9, 0x0FA, 0x105, 0x106, 0x107, 0x108, 0x109, 0x10A, 0x10E, 0x10F,
 };
 
-// Every id the 2016 client (PS2 20160203_0) registers a handler for (FFXI-PS2 tools/handlers2016.json): 2010's
-// plus 0x040, 0x048, 0x049, 0x068, 0x072, 0x075, 0x076, 0x08D, 0x0AE and 0x110-0x11E. Ids up to 0x11E.
-constexpr uint16 kHandled2016[] = {
-    0x005, 0x006, 0x008, 0x009, 0x00A, 0x00B, 0x00D, 0x00E, 0x011, 0x012, 0x013, 0x014, 0x016, 0x017, 0x01B, 0x01C,
-    0x01D, 0x01E, 0x01F, 0x020, 0x021, 0x022, 0x023, 0x024, 0x025, 0x026, 0x027, 0x028, 0x029, 0x02A, 0x02B, 0x02C,
-    0x02D, 0x02E, 0x02F, 0x030, 0x031, 0x032, 0x033, 0x034, 0x036, 0x037, 0x038, 0x039, 0x03A, 0x03B, 0x03C, 0x03D,
-    0x03E, 0x03F, 0x040, 0x041, 0x042, 0x043, 0x044, 0x047, 0x048, 0x049, 0x04B, 0x04C, 0x04D, 0x04F, 0x050, 0x051,
-    0x052, 0x053, 0x054, 0x055, 0x056, 0x057, 0x058, 0x059, 0x05A, 0x05B, 0x05C, 0x05D, 0x05E, 0x05F, 0x060, 0x061,
-    0x062, 0x063, 0x064, 0x065, 0x067, 0x068, 0x069, 0x06F, 0x070, 0x071, 0x072, 0x073, 0x074, 0x075, 0x076, 0x078,
-    0x079, 0x081, 0x082, 0x083, 0x084, 0x085, 0x086, 0x08C, 0x08D, 0x096, 0x097, 0x098, 0x099, 0x09A, 0x09B, 0x09C,
-    0x09D, 0x09E, 0x0A0, 0x0AA, 0x0AB, 0x0AC, 0x0AD, 0x0AE, 0x0B4, 0x0B5, 0x0B6, 0x0B7, 0x0BF, 0x0C8, 0x0C9, 0x0CA,
-    0x0CC, 0x0D2, 0x0D3, 0x0DC, 0x0DD, 0x0DE, 0x0DF, 0x0E0, 0x0E1, 0x0E2, 0x0E6, 0x0F4, 0x0F5, 0x0F6, 0x0F9, 0x0FA,
-    0x105, 0x106, 0x107, 0x108, 0x109, 0x10A, 0x10E, 0x10F, 0x110, 0x111, 0x112, 0x113, 0x115, 0x116, 0x117, 0x118,
-    0x119, 0x11A, 0x11B, 0x11C, 0x11D, 0x11E,
-};
-
-// 2010 translators that still apply to the 2016 client unchanged (FFXI-PS2 docs/packets2016/<dir>_<id>.md,
-// verdicts "2010" / "reuse"). Every other 2010 translator must not run for it: the 2016 client reads today's
-// layout there, and the 2010 rewrite would corrupt the packet (0x00D, 0x037, 0x0AC, 0x0C4, 0x0FB ...).
-constexpr uint16 kReuseS2C2016[] = {
-    0x012, 0x013,               // stack-buffer text copies: cap 0xA4
-    0x021, 0x022, 0x023, 0x025, // trade: entity index, 10 trade slots
-    0x027, 0x02A, 0x036,        // zone dialog lines (remapped through this profile's dialog map)
-    0x029, 0x02D,               // battle message colour tables (0x400)
-    0x032, 0x033, 0x034,        // events this build's files lack are not started
-    0x03D,                      // shop sell: inventory slot < 81
-    0x067,                      // entity sync sub-types (0x800 bound: stricter than needed, safe)
-    0x069, 0x074,               // chocobo racing / chocobo list bounds
-    0x083, 0x085, 0x08C,        // guild shop lists / merits: Count clamps
-    0x0B4,                      // config: party language byte read as GM level
-    0x0D3,                      // trophy solution: 10-slot pool
-    0x0FA,                      // myroom operation: the client ignores it
-    0x105, 0x109,               // bazaar: 81-slot list
-};
-constexpr uint16 kReuseC2S2016[] = {
-    0x01B, // friend pass: size
-    0x01E, 0x01F, 0x0A0, 0x0B5, // text lengths over today's maxima
-    0x04E, // auction command 0x10
-    0x077, // group change: stale name byte
-    0x0A1, // switch vote: size
-    0x0B6, // tell: 2010 layout, still
-};
-
 } // namespace
 
 auto makeProfile20100904() -> std::unique_ptr<compat::Profile>
 {
     auto p = std::make_unique<compat::Profile>("ps2-20100904", compat::Platform::PS2, "retail PS2 client, SCUS-97266 patch 20100904_2");
 
-    // Registered first, it serves every PS2 build no versions.txt claims. The 2016 PS2 build needs its Ver listed
-    // in res/compat/ps2-20160203/versions.txt (the login logs every client's Ver).
+    // This is the only PS2 profile, so every PS2 client gets it.
 
     p->handles(kHandled, std::size(kHandled));
     registerGroups(*p);
 
     // On every packet the per-id translators kept, in the 2010 layout: items the install lacks, then
     // static entity ids (console_items.cpp, console_entities.cpp)
-    p->s2cPass(filterItemsS2C);
-    p->s2cPass(remapEntitiesS2C);
-    p->c2sPass(remapEntitiesC2S);
-    return p;
-}
-
-auto makeProfile20160203(const compat::Platform platform) -> std::unique_ptr<compat::Profile>
-{
-    const bool xbox = platform == compat::Platform::Xbox360;
-    auto       p    = std::make_unique<compat::Profile>(xbox ? "x360-40160203" : "ps2-20160203", platform,
-                                                   xbox ? "retail Xbox 360 client, patch 40160203_0" : "retail PS2 client, patch 20160203_0");
-
-    p->handles(kHandled2016, std::size(kHandled2016));
-
-    // The 2010 translators this build still needs, taken from a 2010 profile
-    compat::Profile base("2010-translators", compat::Platform::PS2, "");
-    registerGroups(base);
-    for (const auto id : kReuseS2C2016)
-    {
-        p->s2c(id, base.s2cTranslator(id));
-    }
-    for (const auto id : kReuseC2S2016)
-    {
-        p->c2s(id, base.c2sTranslator(id));
-    }
-
-    v2016::registerTranslators(*p);
-
-    // As for 2010, with this build's own id maps (res/compat/<name>/)
     p->s2cPass(filterItemsS2C);
     p->s2cPass(remapEntitiesS2C);
     p->c2sPass(remapEntitiesC2S);
