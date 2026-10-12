@@ -25,52 +25,53 @@
 
 #include <optional>
 
-// Id remapping for the PS2 client's data. The server's ids come from today's DATs; the PS2 client
-// indexes its own, where most tables have shifted. Only translators call these, and they answer from
-// the id maps of the profile being translated for (compat::active().maps(), compat/id_maps.h), so each
-// PS2 build gets its own numbering and PC clients are never affected.
+// Maps server ids (from today's DATs) to the ids in the console client's own DATs, and back.
+// Answers come from the id maps of the active profile, so each console build gets its own numbering.
+// Only translators call these. PC clients are never affected.
+// The maps are built by FFXI-PS2 tools/item_map.py, event_map.py and entity_map.py.
 namespace console::ids
 {
 
-// Zone dialog line: today's index -> the 2010 index, or nullopt if the line did not exist in 2010
-// (or the zone is not in the PS2 install, or the map is missing).
+// Maps today's zone dialog line to the client's.
+// Returns nullopt if the line, the zone or the map is missing.
 auto dialog(uint16 zoneId, uint16 messageId) -> std::optional<uint16>;
 
-// Does the PS2 install have this zone's dialog at all? (A zone missing here is missing from the
-// install: the client cannot load it.)
+// Returns true if the client's install has this zone's dialog.
+// A zone missing here is missing from the install, and the client can't load it.
 auto hasZone(uint16 zoneId) -> bool;
 
-// MesNum in 0x027/0x02A/0x036: bit 15 is a display flag, the low 15 bits the dialog line.
+// Maps the MesNum of 0x027, 0x02A and 0x036.
+// Bit 15 is a display flag. The low 15 bits are the dialog line.
 auto mesNum(uint16 zoneId, uint16 mesNum) -> std::optional<uint16>;
 
-// Does the 2010 install have this item? Its item DATs hold a record for every id of the ranges they
-// cover, and items added since are "." placeholders there, so an id counts only with a real name
-// (tools/item_map.py -> items.bin). Item 0 (no item) and gil are always known. Without the
-// map every item is known (nothing is filtered).
+// Returns true if the client's install has this item.
+// Items added since show up as "." placeholders in the client's item DATs, so only ids with a real name count.
+// Item 0 and gil are always known. Without an item map every item is known.
 auto hasItem(uint16 itemId) -> bool;
 
-// Does any of the zone's 2010 event files carry this event number? An event it does not have runs on
-// no entity of the client, which then never sends its end (the player stays locked). Event numbers
-// themselves did not shift between versions. (tools/event_map.py -> events.bin.) Without the
-// map every event is known.
+// Returns true if one of the zone's event files in the client's install has this event.
+// A missing event runs on nothing, so the client never ends it and the player stays locked.
+// Event numbers did not shift between versions. Without an event map every event is known.
 auto hasEvent(uint16 zoneId, uint16 eventId) -> bool;
 
-// Home Point #1 (8700): 2010 zone-specific Yes/No event (result 0 Yes, 1 No), or nullopt if 8700 exists or no HP.
+// Today's Home Point #1 event.
 constexpr uint16 kHomePointEvent = 8700;
+
+// Returns the zone's 2010 Home Point Yes/No event (result 0 is Yes, 1 is No).
+// Returns nullopt if the client has event 8700 or the zone has no Home Point.
 auto homePointEvent(uint16 zoneId) -> std::optional<uint16>;
 
-// Static entities (NPCs, mobs, doors: UniqueNo 0x01000000 | zone << 12 | index, ActIndex = index).
-// The zone's name list in the 2010 DATs has entities inserted since, so indices shift. The map is
-// aligned on the names (tools/entity_map.py -> entity_map.bin). Anything that is not a static
-// entity (players, pets, trusts: ActIndex >= 0x400) passes unchanged. An entity added after 2010 has
-// no 2010 index: nullopt, and the packet naming it should be dropped.
+// Static entities are NPCs, mobs and doors: UniqueNo is 0x01000000 | zone << 12 | index, and ActIndex is the index.
+// Entities were added to the zones' name lists since 2010, so the indexes shifted.
+// Players, pets and trusts (ActIndex >= 0x400) are not static and pass unchanged.
+// An entity added after 2010 has no client index. These return nullopt and the packet should be dropped.
 auto isStatic(uint32 uniqueNo) -> bool;
 
-// today -> 2010 (packets to the PS2 client)
+// Today's ids to the client's, for packets sent to it.
 auto uniqueNoToClient(uint32 uniqueNo) -> std::optional<uint32>;
 auto actIndexToClient(uint16 zoneId, uint16 actIndex) -> std::optional<uint16>;
 
-// 2010 -> today (packets from the PS2 client)
+// The client's ids to today's, for packets it sends.
 auto uniqueNoFromClient(uint32 uniqueNo) -> std::optional<uint32>;
 auto actIndexFromClient(uint16 zoneId, uint16 actIndex) -> std::optional<uint16>;
 

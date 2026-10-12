@@ -29,12 +29,14 @@ namespace console::ids
 namespace
 {
 
+// The id maps of the profile currently being translated for.
 auto maps() -> const compat::IdMaps&
 {
     return compat::active().maps();
 }
 
-// 2010 Home Point event per zone (event file 5820 + zone), on today's Home Point #1.
+// The 2010 Home Point event for each zone. It runs on today's Home Point #1.
+// The events are in event file 5820 + zone.
 struct HomePoint
 {
     uint16 zone;

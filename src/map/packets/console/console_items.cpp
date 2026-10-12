@@ -26,16 +26,12 @@
 #include <algorithm>
 #include <cstring>
 
-// Items the 2010 install does not have. Its item DATs keep a "." record for every id they did not
-// have yet, so the client would show those as "." (and items past its DATs' ranges as nothing).
-// Offsets are the 2010 layouts, i.e. after the s2c translators (FFXI-PS2 docs/packets/*.md):
-//   * a packet that fills a slot (inventory, trade) sends the slot empty instead, so no stale item is
-//     left in it;
-//   * a list (shop, guild shop, inspected equipment) loses the unknown entries;
-//   * a packet about one item (treasure pool, bazaar, delivery box, guild item, /translate,
-//     synthesis result) is dropped.
-// Item ids inside messages (0x009/0x029/0x02A/0x053 parameters) are not filtered: the message still
-// shows, with the item's name from the 2010 DAT.
+// Keeps items the client's install doesn't have out of server packets.
+// The client would show them as "." or as nothing. Offsets are in the 2010 layout (FFXI-PS2 docs/packets/*.md).
+//   - A packet that fills a slot (inventory, trade) sends the slot empty, so no old item is left in it.
+//   - A list (shop, guild shop, inspected equipment) loses the unknown entries.
+//   - A packet about one item (treasure pool, bazaar, delivery box, guild item, /translate, synthesis) is dropped.
+// Item ids inside messages (0x009, 0x029, 0x02A, 0x053) are not filtered. The message still shows.
 
 namespace console
 {
@@ -43,21 +39,21 @@ namespace console
 namespace
 {
 
+// Returns true if the client has the item at this offset.
 auto known(const CBasicPacket& packet, const size_t offset) -> bool
 {
     return ids::hasItem(packet.ref<uint16>(offset));
 }
 
-// Slot packets: 0x01F ITEM_LIST (+4 count, +8 ItemNo), 0x020 ITEM_ATTR (+4 count, +8 price,
-// +0x0C ItemNo, +0x11 exdata[0x18]), 0x023 ITEM_TRADE_LIST (+4 count, +0x0A ItemNo),
-// 0x025 ITEM_TRADE_MYLIST (+4 count, +8 ItemNo).
+// Empties the slot if the client doesn't have its item.
+// Every slot packet has the count at 0x04. ITEM_ATTR also clears its price (0x08) and exdata (0x11, 0x18 bytes).
 auto emptySlot(CBasicPacket& packet, const size_t itemNoOffset) -> Result
 {
     if (known(packet, itemNoOffset))
     {
         return Result::Pass;
     }
-    packet.ref<uint32>(0x04)          = 0;
+    packet.ref<uint32>(0x04)         = 0;
     packet.ref<uint16>(itemNoOffset) = 0;
     if (packet.getType() == 0x020)
     {
@@ -67,8 +63,9 @@ auto emptySlot(CBasicPacket& packet, const size_t itemNoOffset) -> Result
     return Result::Rewritten;
 }
 
-// Remove unknown entries from a list of `count` entries of `stride` bytes at `first`, ItemNo at +0
-// of the entry unless `itemNoAt` says otherwise. Returns the number kept.
+// Removes unknown items from a list and zeroes the freed space.
+// The list has `count` entries of `stride` bytes from `first`. Each entry's item id is at `itemNoAt`.
+// Returns the number of entries kept.
 auto compact(CBasicPacket& packet, const size_t first, const size_t stride, const size_t count, const size_t itemNoAt) -> size_t
 {
     auto*  data = static_cast<uint8*>(packet);
@@ -100,16 +97,16 @@ auto filterItemsS2C(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 {
     switch (packet.getType())
     {
-        case 0x01F:
+        case 0x01F: // ITEM_LIST
             return emptySlot(packet, 0x08);
-        case 0x020:
+        case 0x020: // ITEM_ATTR
             return emptySlot(packet, 0x0C);
-        case 0x023:
+        case 0x023: // ITEM_TRADE_LIST
             return emptySlot(packet, 0x0A);
-        case 0x025:
+        case 0x025: // ITEM_TRADE_MYLIST
             return emptySlot(packet, 0x08);
 
-        case 0x03C: // SHOP_LIST: 8-byte entries from +8 {u32 price, u16 ItemNo, u8 ShopIndex, u8}
+        case 0x03C: // SHOP_LIST: 8-byte entries from 0x08, item id at +4
         {
             const size_t size  = packet.getSize();
             const size_t count = size > 8 ? (size - 8) / 8 : 0;
@@ -120,14 +117,14 @@ auto filterItemsS2C(MapSession* /* PSession */, CBasicPacket& packet) -> Result
             }
             if (kept == 0)
             {
-                return Result::Drop; // an empty 0x03C underflows the client's count (s2c_1c.md)
+                return Result::Drop; // An empty SHOP_LIST breaks the client's count (docs/packets/s2c_1c.md).
             }
             packet.setSize(0x08 + kept * 8);
             return Result::Rewritten;
         }
 
-        case 0x083: // GUILD_BUYLIST / GUILD_SELLLIST: count u8 +0xF4, 8-byte entries from +4
-        case 0x085:
+        case 0x083: // GUILD_BUYLIST: count at 0xF4, 8-byte entries from 0x04
+        case 0x085: // GUILD_SELLLIST: same layout
         {
             const size_t count = packet.ref<uint8>(0xF4);
             const size_t kept  = compact(packet, 0x04, 8, count, 0);
@@ -139,7 +136,7 @@ auto filterItemsS2C(MapSession* /* PSession */, CBasicPacket& packet) -> Result
             return Result::Rewritten;
         }
 
-        case 0x0C9: // EQUIP_INSPECT mode 3: count u8 +0x0B, 0x1C-byte entries from +0x0C
+        case 0x0C9: // EQUIP_INSPECT, mode 3 only: count at 0x0B, 0x1C-byte entries from 0x0C
         {
             if (packet.ref<uint8>(0x0A) != 3)
             {
@@ -155,8 +152,8 @@ auto filterItemsS2C(MapSession* /* PSession */, CBasicPacket& packet) -> Result
             return Result::Rewritten;
         }
 
-        case 0x06F: // COMBINE_ANS / COMBINE_INF: result +8, lost items u16[8] +0x0A
-        case 0x070:
+        case 0x06F: // COMBINE_ANS: result item at 0x08, 8 lost items from 0x0A
+        case 0x070: // COMBINE_INF: same layout
         {
             if (!known(packet, 0x08))
             {
@@ -174,7 +171,7 @@ auto filterItemsS2C(MapSession* /* PSession */, CBasicPacket& packet) -> Result
             return changed ? Result::Rewritten : Result::Pass;
         }
 
-        case 0x05A: // MOTIONMES: weapon for /hurray and /aim at +0x12 (nation for /salute: always < 4)
+        case 0x05A: // MOTIONMES: weapon for /hurray and /aim at 0x12. For /salute it's the nation, always under 4.
             if (!known(packet, 0x12))
             {
                 packet.ref<uint16>(0x12) = 0;
@@ -192,7 +189,7 @@ auto filterItemsS2C(MapSession* /* PSession */, CBasicPacket& packet) -> Result
             return known(packet, 0x0E) ? Result::Pass : Result::Drop;
         case 0x10A: // BAZAAR_SALE
             return known(packet, 0x08) ? Result::Pass : Result::Drop;
-        case 0x04B: // PBX_RESULT, full form (0x58): box slot ItemNo +0x30
+        case 0x04B: // PBX_RESULT: only the full 0x58-byte form has an item, at 0x30
             return packet.getSize() < 0x58 || known(packet, 0x30) ? Result::Pass : Result::Drop;
 
         default:

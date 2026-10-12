@@ -28,8 +28,8 @@
 #include <algorithm>
 #include <cstring>
 
-// Translator groups. Each console_<dir>_<group>.cpp defines one register function; registerGroups calls them all
-// for a profile (console_profile.cpp).
+// Translator groups for the 2010 client, plus small helpers the translators share.
+// Each console_<dir>_<group>.cpp file defines one register function.
 
 namespace console
 {
@@ -40,6 +40,7 @@ void registerS2C_40(compat::Profile& p); // console_s2c_40.cpp: 0x040-0x07F
 void registerS2C_80(compat::Profile& p); // console_s2c_80.cpp: 0x080-0x10F
 void registerC2S(compat::Profile& p);    // console_c2s.cpp
 
+// Registers every translator group on a profile.
 inline void registerGroups(compat::Profile& p)
 {
     registerS2C_00(p);
@@ -49,13 +50,15 @@ inline void registerGroups(compat::Profile& p)
     registerC2S(p);
 }
 
-// The server keeps TP as 0-3000; the 2010 client shows and stores it as a percent (1-300).
+// The server keeps TP as 0-3000. The 2010 client stores it as a percent (0-300).
+// Any TP above 0 is sent as at least 1.
 inline auto tpPercent(const uint32 tp) -> uint32
 {
     return tp == 0 ? 0 : std::max<uint32>(1, tp / 10);
 }
 
-// Helpers for translators: work on a copy of the payload so fields can move in either direction.
+// Rewrites a packet from a saved copy of the original.
+// Reading from the copy lets fields move in either direction without overwriting each other.
 struct Rewrite
 {
     CBasicPacket& packet;
@@ -81,13 +84,13 @@ struct Rewrite
         std::memcpy(static_cast<uint8*>(packet) + off, &v, sizeof(T));
     }
 
-    // copy n bytes from the original offset `from` to the new offset `to`
+    // Copies n bytes from the original offset `from` to the new offset `to`.
     void move(const size_t from, const size_t to, const size_t n)
     {
         std::memcpy(static_cast<uint8*>(packet) + to, src + from, n);
     }
 
-    // zero the payload after the 4-byte header, then set the new size (a multiple of 4)
+    // Zeroes everything after the 4-byte header and sets the new size. The size must be a multiple of 4.
     void clear(const size_t newSize)
     {
         std::memset(static_cast<uint8*>(packet) + 4, 0, 0x1FF - 4);

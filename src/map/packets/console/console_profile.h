@@ -28,8 +28,8 @@
 namespace console
 {
 
-// The retail PS2 client, SCUS-97266 at patch 20100904_2: its layouts (the translators in ps2_s2c_*.cpp,
-// ps2_c2s.cpp), the ids it has a handler for, and its id maps in res/compat/ps2-20100904/.
+// Builds the profile for the 2010 client (SCUS-97266, patch 20100904_2).
+// It uses the console_s2c_*.cpp and console_c2s.cpp translators and the id maps in res/compat/ps2-20100904/.
 auto makeProfile20100904() -> std::unique_ptr<compat::Profile>;
 
 } // namespace console

@@ -30,9 +30,10 @@ namespace console
 namespace
 {
 
-// Every id gcZoneRecvCallBack / gcZoneRecvCallBack2 registers in the 2010 client (FFXI-PS2 tools/handlers.md).
-// Anything else is dropped: ids >= 0x110 would crash it (table B is indexed without a bound), and unknown
-// ids below that only log an error on the client.
+// Every server packet the 2010 client has a handler for (FFXI-PS2 tools/handlers.md).
+// Anything else is dropped. Ids from 0x110 up crash the 2010 client, because it looks them up without a bounds check.
+// Unknown ids below 0x110 only log an error on the client.
+// clang-format off
 constexpr uint16 kHandled[] = {
     0x005, 0x006, 0x008, 0x009, 0x00A, 0x00B, 0x00D, 0x00E, 0x011, 0x012, 0x013, 0x014, 0x016, 0x017, 0x01B, 0x01C,
     0x01D, 0x01E, 0x01F, 0x020, 0x021, 0x022, 0x023, 0x024, 0x025, 0x026, 0x027, 0x028, 0x029, 0x02A, 0x02B, 0x02C,
@@ -44,6 +45,7 @@ constexpr uint16 kHandled[] = {
     0x0B5, 0x0B6, 0x0B7, 0x0BF, 0x0C8, 0x0C9, 0x0CA, 0x0CC, 0x0D2, 0x0D3, 0x0DC, 0x0DD, 0x0DE, 0x0DF, 0x0E0, 0x0E1,
     0x0E2, 0x0E6, 0x0F4, 0x0F5, 0x0F6, 0x0F9, 0x0FA, 0x105, 0x106, 0x107, 0x108, 0x109, 0x10A, 0x10E, 0x10F,
 };
+// clang-format on
 
 } // namespace
 
@@ -56,8 +58,8 @@ auto makeProfile20100904() -> std::unique_ptr<compat::Profile>
     p->handles(kHandled, std::size(kHandled));
     registerGroups(*p);
 
-    // On every packet the per-id translators kept, in the 2010 layout: items the install lacks, then
-    // static entity ids (console_items.cpp, console_entities.cpp)
+    // These run on every packet after the translators, in the 2010 layout.
+    // First filter out unknown items, then remap static entity ids.
     p->s2cPass(filterItemsS2C);
     p->s2cPass(remapEntitiesS2C);
     p->c2sPass(remapEntitiesC2S);

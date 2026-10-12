@@ -30,14 +30,9 @@
 #include <initializer_list>
 #include <vector>
 
-// Static entity ids (NPCs, mobs, doors) moved between the 2010 DATs and today's: entities were
-// inserted into the zones' name lists. Every packet field that names an entity is listed here and
-// remapped after the layout translators ran (s2c: today -> 2010) or before LSB sees it (c2s: 2010 ->
-// today). A static entity with no counterpart drops the packet: sending it under another index
-// would name a different NPC. Offsets are in the 2010 layout (after the s2c translators), which for
-// every packet below is also today's (the translators that move fields do not touch these).
-//
-// Sources: FFXI-PS2 docs/packets/*.md, "Ids to remap".
+// Remaps static entity ids (NPCs, mobs, doors) between today's numbering and the 2010 client's.
+// New entities were added to the zones' name lists since 2010, so the ids shifted.
+// Field lists come from the "Ids to remap" sections in FFXI-PS2 docs/packets/*.md.
 
 namespace console
 {
@@ -47,8 +42,8 @@ namespace
 
 enum class Kind : uint8
 {
-    UniqueNo, // u32 UniqueNo; its zone is in the id
-    ActIndex, // u16 ActIndex of an entity in the player's current zone
+    UniqueNo, // 32-bit UniqueNo. The zone is part of the id.
+    ActIndex, // 16-bit ActIndex, in the player's current zone.
 };
 
 struct Field
@@ -69,6 +64,8 @@ constexpr auto A(const uint8 off) -> Field
     return { off, Kind::ActIndex };
 }
 
+// Every packet field that names an entity, per packet id.
+// Offsets are in the 2010 layout. For these packets that's the same as today's.
 struct Tables
 {
     std::array<Fields, 0x200> s2c;
@@ -77,36 +74,36 @@ struct Tables
     Tables()
     {
         // server -> client
-        s2c[0x00E] = { U(0x04), A(0x08) }; // CHAR_NPC
-        s2c[0x021] = { U(0x04), A(0x08) }; // ITEM_TRADE_REQ
-        s2c[0x022] = { U(0x04), A(0x0C) }; // ITEM_TRADE_RES
-        s2c[0x027] = { U(0x04), A(0x08) }; // TALKNUMWORK2
+        s2c[0x00E] = { U(0x04), A(0x08) };                   // CHAR_NPC
+        s2c[0x021] = { U(0x04), A(0x08) };                   // ITEM_TRADE_REQ
+        s2c[0x022] = { U(0x04), A(0x0C) };                   // ITEM_TRADE_RES
+        s2c[0x027] = { U(0x04), A(0x08) };                   // TALKNUMWORK2
         s2c[0x029] = { U(0x04), U(0x08), A(0x14), A(0x16) }; // BATTLE_MESSAGE
-        s2c[0x02A] = { U(0x04), A(0x18) }; // TALKNUMWORK
+        s2c[0x02A] = { U(0x04), A(0x18) };                   // TALKNUMWORK
         s2c[0x02D] = { U(0x04), U(0x08), A(0x0C), A(0x0E) }; // BATTLE_MESSAGE2
-        s2c[0x032] = { U(0x04), A(0x08) }; // EVENT
-        s2c[0x033] = { U(0x04), A(0x08) }; // EVENTSTR
-        s2c[0x034] = { U(0x04), A(0x28) }; // EVENTNUM
-        s2c[0x036] = { U(0x04), A(0x08) }; // TALKNUM
+        s2c[0x032] = { U(0x04), A(0x08) };                   // EVENT
+        s2c[0x033] = { U(0x04), A(0x08) };                   // EVENTSTR
+        s2c[0x034] = { U(0x04), A(0x28) };                   // EVENTNUM
+        s2c[0x036] = { U(0x04), A(0x08) };                   // TALKNUM
         s2c[0x038] = { U(0x04), U(0x08), A(0x10), A(0x12) }; // SCHEDULOR
         s2c[0x039] = { U(0x04), U(0x08), A(0x10), A(0x12) }; // MAPSCHEDULOR
         s2c[0x03A] = { U(0x04), U(0x08), A(0x0C), A(0x0E) }; // MAGICSCHEDULOR
-        s2c[0x043] = { U(0x04), A(0x08) }; // TALKNUMNAME
-        s2c[0x058] = { U(0x04), U(0x08), A(0x0C) }; // ASSIST
+        s2c[0x043] = { U(0x04), A(0x08) };                   // TALKNUMNAME
+        s2c[0x058] = { U(0x04), U(0x08), A(0x0C) };          // ASSIST
         s2c[0x05A] = { U(0x04), U(0x08), A(0x0C), A(0x0E) }; // MOTIONMES
-        s2c[0x05B] = { U(0x10), A(0x14) }; // WPOS
-        s2c[0x065] = { U(0x10), A(0x14) }; // WPOS2
-        s2c[0x0D2] = { U(0x08), A(0x12) }; // TROPHY_LIST (the dropping mob)
-        s2c[0x0F4] = { A(0x04) };          // TRACKING_LIST (widescan)
-        s2c[0x0F5] = { A(0x12) };          // TRACKING_POS
+        s2c[0x05B] = { U(0x10), A(0x14) };                   // WPOS
+        s2c[0x065] = { U(0x10), A(0x14) };                   // WPOS2
+        s2c[0x0D2] = { U(0x08), A(0x12) };                   // TROPHY_LIST: the mob that dropped the item
+        s2c[0x0F4] = { A(0x04) };                            // TRACKING_LIST: widescan
+        s2c[0x0F5] = { A(0x12) };                            // TRACKING_POS
 
         // client -> server
-        c2s[0x015] = { A(0x16) };          // POS facetarget
+        c2s[0x015] = { A(0x16) };          // POS: face target
         c2s[0x016] = { A(0x04) };          // CHARREQ
         c2s[0x017] = { A(0x04) };          // CHARREQ2
         c2s[0x01A] = { U(0x04), A(0x08) }; // ACTION
         c2s[0x01C] = { A(0x04) };
-        c2s[0x036] = { U(0x04), A(0x3A) }; // ITEM_TRANSFER (trade to an NPC)
+        c2s[0x036] = { U(0x04), A(0x3A) }; // ITEM_TRANSFER: trade to an NPC
         c2s[0x037] = { U(0x04), A(0x0C) }; // ITEM_USE
         c2s[0x05B] = { U(0x04), A(0x0C) }; // EVENTEND
         c2s[0x05C] = { U(0x10), A(0x1C) }; // EVENTENDXZY
@@ -125,6 +122,8 @@ auto tables() -> const Tables&
     return t;
 }
 
+// Remaps each listed field of one packet.
+// An entity with no match in the other numbering drops the packet. Any other index would name a different NPC.
 auto apply(const Fields& fields, MapSession* PSession, CBasicPacket& packet, const bool toClient) -> Result
 {
     if (fields.empty())
@@ -166,7 +165,7 @@ auto apply(const Fields& fields, MapSession* PSession, CBasicPacket& packet, con
             const auto was = packet.ref<uint16>(f.offset);
             if (was == 0)
             {
-                continue; // "no entity"
+                continue; // 0 means no entity.
             }
             const auto now = toClient ? ids::actIndexToClient(zone, was) : ids::actIndexFromClient(zone, was);
             if (!now)

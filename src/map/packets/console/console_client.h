@@ -23,13 +23,10 @@
 
 #include "packets/compat/profile.h"
 
-// Support for the retail PS2 client (SCUS-97266, patch 20100904_2): profile "ps2-20100904"
-// (console_profile.cpp), served to sessions whose 0x00A names sPlatform "PS2" (compat/client.h).
-//
-// Ground truth for the 2010 layouts is the client itself: the handler for each packet id, decompiled
-// from an EE RAM dump (FFXI-PS2 repo: docs/packet-handlers.md, decomp/). The "PS2:" notes in
-// packets/s2c and packets/c2s come from XiPackets and describe the final (2016) PS2 client, which is
-// newer than this one; where they disagree, the decompiled handler wins.
+// Shared types for the console client translators.
+// The 2010 client (SCUS-97266, patch 20100904_2) gets the "ps2-20100904" profile when its login says it's a PS2.
+// Layouts come from the 2010 client's own packet handlers (FFXI-PS2 docs/packet-handlers.md).
+// The "PS2:" notes in packets/s2c and packets/c2s describe the 2016 client. Where they disagree, trust the 2010 handlers.
 
 class CBasicPacket;
 struct MapSession;
