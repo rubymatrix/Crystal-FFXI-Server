@@ -172,7 +172,7 @@ auto validName(const std::string& name) -> bool
 }
 
 // 0 if the name can be given to a character of this world, else the lobby error to show. Deleted characters keep
-// their rows, so their names stay taken.
+// their rows (accid 0) but not their names: a new character can take one.
 auto nameError(const std::string& name) -> uint32
 {
     if (!validName(name))
@@ -180,7 +180,7 @@ auto nameError(const std::string& name) -> uint32
         ShowWarningFmt("lobby_api: name <{}> refused: not 3 to 15 letters", name);
         return ErrNameUnavailable;
     }
-    auto rset = run("SELECT COUNT(*) AS `n` FROM chars WHERE LOWER(charname) = LOWER(?)", name);
+    auto rset = run("SELECT COUNT(*) AS `n` FROM chars WHERE LOWER(charname) = LOWER(?) AND accid <> 0", name);
     if (rset->next() && rset->get<uint32>("n") != 0)
     {
         ShowWarningFmt("lobby_api: name <{}> refused: in use", name);

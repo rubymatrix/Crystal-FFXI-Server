@@ -7452,11 +7452,12 @@ bool hasEntitySpawned(CCharEntity* PChar, CBaseEntity* entity)
     return spawnlist->find(entity->id) != spawnlist->end();
 }
 
+// A deleted character (accid 0) keeps its row and name, and a new character can take that name: only live ones match
 uint32 getCharIdFromName(const std::string& name)
 {
     TracyZoneScoped;
 
-    const auto rset = db::preparedStmt("SELECT charid FROM chars WHERE charname = ? LIMIT 1", name);
+    const auto rset = db::preparedStmt("SELECT charid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
     FOR_DB_SINGLE_RESULT(rset)
     {
         return rset->get<uint32>("charid");
@@ -7469,7 +7470,7 @@ uint32 getAccountIdFromName(const std::string& name)
 {
     TracyZoneScoped;
 
-    const auto rset = db::preparedStmt("SELECT accid FROM chars WHERE charname = ? LIMIT 1", name);
+    const auto rset = db::preparedStmt("SELECT accid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
     FOR_DB_SINGLE_RESULT(rset)
     {
         return rset->get<uint32>("accid");
@@ -7482,7 +7483,7 @@ auto getCharIdAndAccountIdFromName(const std::string& name) -> std::pair<uint32,
 {
     TracyZoneScoped;
 
-    const auto rset = db::preparedStmt("SELECT charid, accid FROM chars WHERE charname = ? LIMIT 1", name);
+    const auto rset = db::preparedStmt("SELECT charid, accid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
     FOR_DB_SINGLE_RESULT(rset)
     {
         return { rset->get<uint32>("charid"), rset->get<uint32>("accid") };

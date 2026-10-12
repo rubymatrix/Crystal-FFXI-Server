@@ -187,7 +187,7 @@ void CParty::AssignPartyRole(const std::string& MemberName, const GP_CLI_COMMAND
     }
 
     // Make sure that the character is actually a part of this party
-    const auto rset = db::preparedStmt("SELECT chars.charid FROM chars JOIN accounts_parties ON accounts_parties.charid = chars.charid WHERE charname = ? AND partyid = ?", MemberName, m_PartyID);
+    const auto rset = db::preparedStmt("SELECT chars.charid FROM chars JOIN accounts_parties ON accounts_parties.charid = chars.charid WHERE charname = ? AND chars.accid <> 0 AND partyid = ?", MemberName, m_PartyID);
     if (!rset || rset->rowsCount() == 0)
     {
         return;
@@ -1207,7 +1207,7 @@ void CParty::SetQuarterMaster(const std::string& MemberName)
     if (PEntity != nullptr)
     {
         db::preparedStmt("UPDATE accounts_parties JOIN chars ON accounts_parties.charid = chars.charid "
-                         "SET partyflag = partyflag | ? WHERE partyid = ? AND charname = ?",
+                         "SET partyflag = partyflag | ? WHERE partyid = ? AND charname = ? AND chars.accid <> 0",
                          PARTY_QM,
                          m_PartyID,
                          MemberName);

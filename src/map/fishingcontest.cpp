@@ -438,7 +438,7 @@ bool WriteContestEntryData(FishingContestEntry* entry)
 
     const auto maybeCharId = [&]() -> Maybe<uint32>
     {
-        const auto rset = db::preparedStmt("SELECT charid FROM chars WHERE charname = ?", entry->name);
+        const auto rset = db::preparedStmt("SELECT charid FROM chars WHERE charname = ? AND accid <> 0", entry->name);
         FOR_DB_SINGLE_RESULT(rset)
         {
             return rset->get<uint32>("charid");

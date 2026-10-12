@@ -86,7 +86,7 @@ auto getFishingHistory(const std::string& charName, const uint32 limit) -> sol::
                                           "INNER JOIN chars c ON c.charid = h.charid "
                                           "LEFT JOIN item_basic ib ON ib.itemid = h.itemid "
                                           "LEFT JOIN zone_settings z ON z.zoneid = h.zoneid "
-                                          "WHERE c.charname = ? "
+                                          "WHERE c.charname = ? AND c.accid <> 0 "
                                           "ORDER BY h.caught_at DESC, h.id DESC "
                                           "LIMIT ?",
                                           charName,
@@ -123,7 +123,7 @@ auto getFishingRecords(const std::string& charName) -> sol::table
                                        "INNER JOIN chars c ON c.charid = r.charid "
                                        "LEFT JOIN item_basic li ON li.itemid = r.longest_itemid "
                                        "LEFT JOIN item_basic hi ON hi.itemid = r.heaviest_itemid "
-                                       "WHERE c.charname = ?",
+                                       "WHERE c.charname = ? AND c.accid <> 0",
                                        charName);
 
     if (rset && rset->next())
