@@ -430,7 +430,11 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
         else
         {
             ShowDebugFmt("recv_parse: charid {} from {}: repeated 0x00A (retry {}), keeping sequence (server {}, client {})",
-                         packetCharID, ipp.toString(), loginPacket.unknown00, PSession->server_packet_id, PSession->client_packet_id);
+                         packetCharID,
+                         ipp.toString(),
+                         loginPacket.unknown00,
+                         PSession->server_packet_id,
+                         PSession->client_packet_id);
         }
 
         // On the PS2 client these two words are its login stage and receive-error history (gcZoneRecvError);
@@ -705,7 +709,11 @@ int32 MapNetworking::send_parse(uint8* buff, size_t* buffsize, MapSession* PSess
                     incrementKeyAfterEncrypt = true;
 
                     ShowInfoFmt("send_parse: charid {}: 0x00B state {} to {} in datagram {} (client acked {})",
-                                PSession->charID, static_cast<uint32>(PSession->zone_type), PSession->zone_ipp.toString(), PSession->server_packet_id, PSession->client_packet_id);
+                                PSession->charID,
+                                static_cast<uint32>(PSession->zone_type),
+                                PSession->zone_ipp.toString(),
+                                PSession->server_packet_id,
+                                PSession->client_packet_id);
 
                     if (PSession->zone_type != GP_GAME_LOGOUT_STATE::LOGOUT)
                     {
