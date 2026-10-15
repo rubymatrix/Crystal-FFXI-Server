@@ -329,9 +329,16 @@ void SearchHandler::read_func(const uint16_t length)
             }
             break;
             case TCP_AH_REQUEST:
-            case TCP_AH_REQUEST_MORE:
             {
                 HandleAuctionHouseRequest();
+            }
+            break;
+            case TCP_AH_REQUEST_MORE:
+            {
+                // The client asks for more when it has read a page without the final flag and the next page
+                // hasn't arrived yet. Every page of a reply is already sent at once, so there is nothing to add.
+                // The request has no body, so it can't be read as an AH request: the category byte is leftover
+                // padding and would return a list for a random category.
             }
             break;
             case TCP_AH_HISTORY_SINGLE:
