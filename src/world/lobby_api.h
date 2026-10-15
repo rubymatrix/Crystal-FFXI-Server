@@ -19,6 +19,11 @@
 
 #pragma once
 
+#include "common/cbasetypes.h"
+#include "data/enums/zone.h"
+
+#include <functional>
+
 #include <httplib.h>
 
 // The API the PlayOnline lobby uses to reach this world: its characters, and entering the world. The lobby never
@@ -48,5 +53,8 @@ namespace lobby_api
 {
 
 void registerRoutes(httplib::Server& server);
+
+// Called from the HTTP thread when a character enters the world, so the map server it goes to can expect it
+void setEnterHandler(std::function<void(uint32 charId, xi::ZoneId zoneId)> handler);
 
 } // namespace lobby_api

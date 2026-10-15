@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -54,6 +55,10 @@ constexpr size_t MaxBodyBytes = 4096;
 
 // Creating, renaming and deleting are one at a time, so two characters cannot take the same name or charid
 std::mutex mutationMutex;
+
+// Tells the map server that a character is on its way (set by the world engine)
+std::mutex                              enterHandlerMutex;
+std::function<void(uint32, xi::ZoneId)> enterHandler;
 
 // What a handler answers instead of 200
 struct Refusal
@@ -498,6 +503,21 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
         version,
         expansions,
         token);
+
+    // The map server keeps a pending session for the character, so the row above is removed if the client
+    // never gets there (as it does for LSB's own login server)
+    auto rset = run("SELECT IF(pos_zone = 0, pos_prevzone, pos_zone) AS `zone` FROM chars WHERE charid = ?", charId);
+    if (rset->next())
+    {
+        const auto zoneId = rset->get<xi::ZoneId>("zone");
+
+        const std::lock_guard handlerLock(enterHandlerMutex);
+        if (enterHandler)
+        {
+            enterHandler(charId, zoneId);
+        }
+    }
+
     reply(res, 200, json::object());
 }
 
@@ -518,6 +538,12 @@ void sessionOwner(const httplib::Request& req, httplib::Response& res)
 }
 
 } // namespace
+
+void setEnterHandler(std::function<void(uint32 charId, xi::ZoneId zoneId)> handler)
+{
+    const std::lock_guard lock(enterHandlerMutex);
+    enterHandler = std::move(handler);
+}
 
 void registerRoutes(httplib::Server& server)
 {

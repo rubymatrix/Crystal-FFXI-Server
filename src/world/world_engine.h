@@ -48,6 +48,11 @@ public:
     WorldEngine(Scheduler& scheduler, ZMQService& zmqService, EnableHTTPServer enableHTTPServer);
     ~WorldEngine() override;
 
+    WorldEngine(const WorldEngine&)            = delete;
+    WorldEngine& operator=(const WorldEngine&) = delete;
+    WorldEngine(WorldEngine&&)                 = delete;
+    WorldEngine& operator=(WorldEngine&&)      = delete;
+
     // TODO: Make all of these members private
     Scheduler& scheduler_;
 

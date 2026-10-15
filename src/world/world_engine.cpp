@@ -29,6 +29,7 @@
 #include "conquest_system.h"
 #include "http_server.h"
 #include "ipc_server.h"
+#include "lobby_api.h"
 #include "party_system.h"
 #include "time_server.h"
 
@@ -62,6 +63,20 @@ WorldEngine::WorldEngine(Scheduler& scheduler, ZMQService& zmqService, EnableHTT
         {
             ipcServer_->clearSilentMapSessions();
         });
+
+    // A character the lobby put in the world goes to its map server like any zone change
+    lobby_api::setEnterHandler(
+        [this](uint32 charId, xi::ZoneId zoneId)
+        {
+            scheduler_.postToMainThread(
+                [this, charId, zoneId]()
+                {
+                    ipcServer_->handleMessage_CharZone(IPP(), ipc::CharZone{ .charId = charId, .destinationZoneId = zoneId });
+                });
+        });
 }
 
-WorldEngine::~WorldEngine() = default;
+WorldEngine::~WorldEngine()
+{
+    lobby_api::setEnterHandler(nullptr);
+}
