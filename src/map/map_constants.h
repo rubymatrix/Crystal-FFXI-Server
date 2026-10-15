@@ -74,6 +74,13 @@ static constexpr auto kPersistSweepInterval = 5s;
 // The rate at which we pump the ZMQ queues
 static constexpr auto kIPCPumpInterval = 100ms;
 
+// The rate at which a map server tells the world server it is still running
+static constexpr auto kMapHeartbeatInterval = 10s;
+
+// How long the world server waits without a heartbeat before it treats a map server as gone. The map's own
+// watchdog kills it long before this if its main loop stalls.
+static constexpr auto kMapHeartbeatTimeout = 60s;
+
 // Packet & networking constants
 static constexpr auto kMaxBufferSize           = 2500U;
 static constexpr auto kMaxPacketPerCompression = 32U;

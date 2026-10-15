@@ -342,4 +342,10 @@ struct GMCallResponse
     std::string message{}; // Up to 1024 characters
 };
 
+// Sent by every map server on a timer, so the world server can tell when one has stopped
+struct MapHeartbeat
+{
+    uint8 unused{}; // glaze rejects an aggregate with no members
+};
+
 } // namespace ipc

@@ -24,6 +24,7 @@
 #include "common/ipc.h"
 #include "common/ipp.h"
 #include "common/mmo.h"
+#include "common/timer.h"
 #include "common/zmq/zmq_service.h"
 
 #include "character_cache.h"
@@ -31,6 +32,7 @@
 #include "zone_settings.h"
 
 #include <atomic>
+#include <map>
 #include <thread>
 
 #include <zmq.hpp>
@@ -42,6 +44,10 @@ public:
     IPCServer(WorldEngine& worldServer, ZMQService& zmqService);
 
     void handleIncomingMessages();
+
+    // Clears the sessions of map servers that stopped sending heartbeats (crashed or killed), so their players
+    // stop showing as online
+    void clearSilentMapSessions();
 
     template <typename T>
     void sendMessage(const IPP& ipp, const T& message);
@@ -120,6 +126,7 @@ public:
     void handleMessage_AssistChannelEvent(const IPP& ipp, const ipc::AssistChannelEvent& message);
     void handleMessage_GMCallRequest(const IPP& ipp, const ipc::GMCallRequest& message);
     void handleMessage_GMCallResponse(const IPP& ipp, const ipc::GMCallResponse& message);
+    void handleMessage_MapHeartbeat(const IPP& ipp, const ipc::MapHeartbeat& message);
 
     void handleUnknownMessage(const IPP& ipp, const std::span<uint8_t> message);
 
@@ -128,6 +135,9 @@ private:
 
     CharacterCache characterCache_;
     ZoneSettings   zoneSettings_;
+
+    // When each map server last sent a heartbeat. A map is only listed once it has sent one.
+    std::map<IPP, timer::time_point> mapHeartbeats_;
 
     ipc::Channel<IPPMessage> channel_;
 };

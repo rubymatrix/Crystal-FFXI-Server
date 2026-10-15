@@ -55,6 +55,13 @@ WorldEngine::WorldEngine(Scheduler& scheduler, ZMQService& zmqService, EnableHTT
         {
             ipcServer_->handleIncomingMessages();
         });
+
+    silentMapsToken_ = scheduler_.intervalOnMainThread(
+        kMapHeartbeatInterval,
+        [this]()
+        {
+            ipcServer_->clearSilentMapSessions();
+        });
 }
 
 WorldEngine::~WorldEngine() = default;

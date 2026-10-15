@@ -1011,3 +1011,10 @@ void IPCClient::handleUnknownMessage(const IPP& ipp, const std::span<uint8_t> me
 
     ShowWarningFmt("Received unknown message from {} with code {} and size {}", ipp.toString(), message[0], message.size());
 }
+
+void IPCClient::handleMessage_MapHeartbeat(const IPP& ipp, const ipc::MapHeartbeat& message)
+{
+    TracyZoneScoped;
+
+    ShowWarningFmt("Received MapHeartbeat message from {} - only map servers send these", ipp.toString());
+}

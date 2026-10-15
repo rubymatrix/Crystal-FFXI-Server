@@ -88,6 +88,7 @@ public:
     void handleMessage_AssistChannelEvent(const IPP& ipp, const ipc::AssistChannelEvent& message) const;
     void handleMessage_GMCallRequest(const IPP& ipp, const ipc::GMCallRequest& message);
     void handleMessage_GMCallResponse(const IPP& ipp, const ipc::GMCallResponse& message);
+    void handleMessage_MapHeartbeat(const IPP& ipp, const ipc::MapHeartbeat& message);
 
     void handleUnknownMessage(const IPP& ipp, const std::span<uint8_t> message);
 

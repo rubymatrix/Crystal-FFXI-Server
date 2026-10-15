@@ -259,6 +259,13 @@ auto MapEngine::init() -> Task<void>
             {
                 co_await persistSweep();
             });
+
+        heartbeatToken_ = scheduler_.intervalOnMainThread(
+            kMapHeartbeatInterval,
+            []()
+            {
+                message::send(ipc::MapHeartbeat{});
+            });
     }
 
     zoneutils::TOTDChange(vanadiel_time::get_totd()); // This tells the zones to spawn stuff based on time of day conditions (such as undead at night)

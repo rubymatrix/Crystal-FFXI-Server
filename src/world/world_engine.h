@@ -65,4 +65,5 @@ public:
 private:
     Maybe<Scheduler::Token> timeServerToken_;
     Maybe<Scheduler::Token> pumpQueuesToken_;
+    Maybe<Scheduler::Token> silentMapsToken_;
 };

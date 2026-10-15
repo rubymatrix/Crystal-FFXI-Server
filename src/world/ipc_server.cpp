@@ -29,6 +29,8 @@
 
 #include <memory>
 
+#include <map/map_constants.h>
+
 #include "common/logging.h"
 
 namespace
@@ -729,6 +731,28 @@ void IPCServer::handleMessage_GMCallRequest(const IPP& ipp, const ipc::GMCallReq
     // TODO: Route this to external clients
 }
 
+void IPCServer::clearSilentMapSessions()
+{
+    TracyZoneScoped;
+
+    const auto now = timer::now();
+    for (auto it = mapHeartbeats_.begin(); it != mapHeartbeats_.end();)
+    {
+        if (now - it->second < kMapHeartbeatTimeout)
+        {
+            ++it;
+            continue;
+        }
+
+        // Only rows still pointing at that map: a character zoning to another map server already points there
+        const auto& ipp = it->first;
+        db::preparedStmt("DELETE FROM accounts_sessions WHERE server_addr = ? AND server_port = ?", ipp.getIP(), ipp.getPort());
+        ShowWarningFmt("Map server {} sent no heartbeat for {}s; cleared its sessions", ipp.toString(), std::chrono::duration_cast<std::chrono::seconds>(kMapHeartbeatTimeout).count());
+
+        it = mapHeartbeats_.erase(it);
+    }
+}
+
 void IPCServer::handleMessage_GMCallResponse(const IPP& ipp, const ipc::GMCallResponse& message)
 {
     TracyZoneScoped;
@@ -754,4 +778,16 @@ void IPCServer::handleUnknownMessage(const IPP& ipp, const std::span<uint8_t> me
     TracyZoneScoped;
 
     ShowWarningFmt("Received unknown message from {} with code {} and size {}", ipp.toString(), message[0], message.size());
+}
+
+void IPCServer::handleMessage_MapHeartbeat(const IPP& ipp, const ipc::MapHeartbeat& message)
+{
+    TracyZoneScoped;
+
+    if (!mapHeartbeats_.contains(ipp))
+    {
+        ShowInfoFmt("Map server {} is sending heartbeats", ipp.toString());
+    }
+
+    mapHeartbeats_[ipp] = timer::now();
 }
