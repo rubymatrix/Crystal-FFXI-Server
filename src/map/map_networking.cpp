@@ -267,13 +267,17 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
             auto pendingSession = mapSessions_.getPendingSessionByCharId(packetCharID);
             if (pendingSession)
             {
-                mapSessions_.destroyPendingSession(pendingSession);
+                // The pending session stays until this one exists, so its timeout still clears the row if not
                 PSession = mapSessions_.createSession(ipp);
                 if (PSession == nullptr)
                 {
                     ShowWarningFmt("recv_parse: 0x00A for charid {} from {} rejected, no login session from this address", packetCharID, ipp.toString());
                     return -1;
                 }
+                mapSessions_.destroyPendingSession(pendingSession);
+
+                // Set before anything below can fail, so the session timeout clears this character's row
+                PSession->charID = packetCharID;
             }
             else if (hasLobbySession(packetCharID, ipp))
             {
@@ -287,6 +291,7 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
                 {
                     return -1;
                 }
+                PSession->charID = packetCharID;
             }
             else
             {
