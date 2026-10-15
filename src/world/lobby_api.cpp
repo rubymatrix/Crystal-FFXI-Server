@@ -504,6 +504,9 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
         expansions,
         token);
 
+    // A timeout on the last visit leaves the character flagged as link dead, which search would keep showing
+    run("UPDATE char_flags SET disconnecting = 0 WHERE charid = ?", charId);
+
     // The map server keeps a pending session for the character, so the row above is removed if the client
     // never gets there (as it does for LSB's own login server)
     auto rset = run("SELECT IF(pos_zone = 0, pos_prevzone, pos_zone) AS `zone` FROM chars WHERE charid = ?", charId);
