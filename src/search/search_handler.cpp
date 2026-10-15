@@ -612,7 +612,7 @@ void SearchHandler::HandleAuctionHouseHistory()
     const auto             HistoryList = PDataLoader.GetAHItemHistory(ItemID, stack != 0);
     const AuctionHouseItem item        = PDataLoader.GetAHItemFromItemID(ItemID);
 
-    CAHHistoryPacket PAHPacket = CAHHistoryPacket(item, stack);
+    CAHHistoryPacket PAHPacket = CAHHistoryPacket(item, stack, searchLayoutFor(ipAddress_));
 
     for (const auto& i : HistoryList)
     {
