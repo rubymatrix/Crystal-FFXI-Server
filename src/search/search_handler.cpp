@@ -397,7 +397,7 @@ void SearchHandler::HandleGroupListRequest()
     {
         const auto PartyList = PDataLoader.GetPartyList(partyid, allianceid);
 
-        CPartyListPacket PPartyPacket(partyid, static_cast<uint32>(PartyList.size()));
+        CPartyListPacket PPartyPacket(partyid, static_cast<uint32>(PartyList.size()), searchLayoutFor(ipAddress_));
 
         std::size_t membersSent = 0;
         for (const auto& player : PartyList)
@@ -426,11 +426,12 @@ void SearchHandler::HandleGroupListRequest()
 
         // Iterate through the linkshell list, splitting up the results into
         // smaller chunks.
-        auto it = LinkshellList.begin();
+        auto       it     = LinkshellList.begin();
+        const auto layout = searchLayoutFor(ipAddress_);
 
         do
         {
-            CLinkshellListPacket PLinkshellPacket(linkshellid, totalResults);
+            CLinkshellListPacket PLinkshellPacket(linkshellid, totalResults, layout);
 
             while (currentResult < totalResults)
             {

@@ -23,11 +23,12 @@
 
 #include "common/cbasetypes.h"
 #include "data_loader.h"
+#include "search_list.h"
 
 class CLinkshellListPacket
 {
 public:
-    CLinkshellListPacket(uint32 linkshellid, uint32 Total);
+    CLinkshellListPacket(uint32 linkshellid, uint32 Total, SearchListLayout layout = SearchListLayout::Current);
     ~CLinkshellListPacket() = default;
 
     auto AddPlayer(const SearchEntity& player) -> bool;
@@ -37,6 +38,8 @@ public:
     auto GetSize() const -> uint16;
 
 private:
-    uint32 m_offset{};
-    uint8  m_data[1024]{};
+    uint32           m_offset{};
+    uint32           m_linkshellid{};
+    SearchListLayout m_layout{ SearchListLayout::Current };
+    uint8            m_data[1024]{};
 };

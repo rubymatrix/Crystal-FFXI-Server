@@ -23,11 +23,12 @@
 
 #include "common/cbasetypes.h"
 #include "data_loader.h"
+#include "search_list.h"
 
 class CPartyListPacket
 {
 public:
-    CPartyListPacket(uint32 partyid, uint32 Total);
+    CPartyListPacket(uint32 partyid, uint32 Total, SearchListLayout layout = SearchListLayout::Current);
     ~CPartyListPacket() = default;
 
     auto AddPlayer(const SearchEntity& player) -> bool;
@@ -36,7 +37,8 @@ public:
     auto GetSize() const -> uint16;
 
 private:
-    uint32 m_offset{};
+    uint32           m_offset{};
+    SearchListLayout m_layout{ SearchListLayout::Current };
 
     uint8 m_data[1024]{};
 };
