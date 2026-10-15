@@ -386,7 +386,11 @@ void SearchHandler::HandleGroupListRequest()
     uint32       partyid      = ref<uint32>(buffer_.data(), 0x10);
     const uint32 allianceid   = ref<uint32>(buffer_.data(), 0x14);
     uint32       linkshellid1 = ref<uint32>(buffer_.data(), 0x18);
-    uint32       linkshellid2 = ref<uint32>(buffer_.data(), 0x1C);
+
+    // The 2010 PS2 client has one linkshell and sends 12 bytes here. What follows is padding,
+    // so there is no second linkshell to read.
+    const auto layout       = searchLayoutFor(ipAddress_);
+    uint32     linkshellid2 = layout == SearchListLayout::Ps2_2010 ? 0 : ref<uint32>(buffer_.data(), 0x1C);
 
     ShowInfoFmt("SEARCH::PartyID = {}", partyid);
     ShowInfoFmt("SEARCH::LinkshellIDs = {}, {}", linkshellid1, linkshellid2);
@@ -397,7 +401,7 @@ void SearchHandler::HandleGroupListRequest()
     {
         const auto PartyList = PDataLoader.GetPartyList(partyid, allianceid);
 
-        CPartyListPacket PPartyPacket(partyid, static_cast<uint32>(PartyList.size()), searchLayoutFor(ipAddress_));
+        CPartyListPacket PPartyPacket(partyid, static_cast<uint32>(PartyList.size()), layout);
 
         std::size_t membersSent = 0;
         for (const auto& player : PartyList)
@@ -426,8 +430,7 @@ void SearchHandler::HandleGroupListRequest()
 
         // Iterate through the linkshell list, splitting up the results into
         // smaller chunks.
-        auto       it     = LinkshellList.begin();
-        const auto layout = searchLayoutFor(ipAddress_);
+        auto it = LinkshellList.begin();
 
         do
         {
