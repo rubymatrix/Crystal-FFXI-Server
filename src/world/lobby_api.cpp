@@ -521,6 +521,18 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
         }
     }
 
+    // One character in this world per PlayOnline account. The lobby checks its other worlds itself.
+    {
+        auto others = run("SELECT charid FROM chars WHERE pol_id = ? AND charid <> ? AND accid <> 0", polId, charId);
+        while (others->next())
+        {
+            if (isOnline(others->get<uint32>("charid")))
+            {
+                refuse(409, fmt::format("character {} of the same PlayOnline account is still logged in", others->get<uint32>("charid")));
+            }
+        }
+    }
+
     uint8 sessionKey[20] = {};
     std::copy(key->begin(), key->end(), sessionKey);
     run("INSERT INTO accounts_sessions(accid, charid, session_key, server_addr, server_port, client_addr, version_mismatch, client_version, client_expansions, lobby_token) "
