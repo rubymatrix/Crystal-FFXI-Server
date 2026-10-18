@@ -489,10 +489,9 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
     const auto clientAddr = j.at("clientAddr").get<uint32>();
     const auto version    = j.at("clientVersion").get<std::string>();
     const auto expansions = j.at("clientExpansions").get<uint32>();
-    const auto token      = j.at("lobbyToken").get<std::string>();
     const auto polId      = j.at("account").at("polId").get<uint64>();
 
-    if (!key || contentId == 0 || polId == 0 || token.size() != 64 || version.size() > 16)
+    if (!key || contentId == 0 || polId == 0 || version.size() > 16)
     {
         refuse(400, "invalid session");
     }
@@ -535,8 +534,8 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
 
     uint8 sessionKey[20] = {};
     std::copy(key->begin(), key->end(), sessionKey);
-    run("INSERT INTO accounts_sessions(accid, charid, session_key, server_addr, server_port, client_addr, version_mismatch, client_version, client_expansions, lobby_token) "
-        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    run("INSERT INTO accounts_sessions(accid, charid, session_key, server_addr, server_port, client_addr, version_mismatch, client_version, client_expansions) "
+        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
         contentId,
         charId,
         sessionKey,
@@ -545,25 +544,8 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
         clientAddr,
         0,
         version,
-        expansions,
-        token);
+        expansions);
     reply(res, 200, json::object());
-}
-
-void sessionOwner(const httplib::Request& req, httplib::Response& res)
-{
-    const auto token = req.get_header_value("X-Lobby-Session");
-    if (token.size() != 64)
-    {
-        refuse(403, "no session");
-    }
-
-    auto rset = run("SELECT accid, charid FROM accounts_sessions WHERE lobby_token = ? LIMIT 1", token);
-    if (!rset->next())
-    {
-        refuse(403, "no session");
-    }
-    reply(res, 200, { { "contentId", rset->get<uint32>("accid") }, { "charId", rset->get<uint32>("charid") } });
 }
 
 } // namespace
@@ -577,7 +559,6 @@ void registerRoutes(httplib::Server& server)
     server.Post("/api/lobby/characters/delete", handle(deleteCharacter));
     server.Post("/api/lobby/characters/online", handle(online));
     server.Post("/api/lobby/sessions/enter", handle(enterWorld));
-    server.Get("/api/lobby/session", handle(sessionOwner));
 }
 
 } // namespace lobby_api

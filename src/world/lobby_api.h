@@ -40,9 +40,8 @@
 //   POST /api/lobby/characters/delete      {"contentId","charId"}                  200 {}
 //   POST /api/lobby/characters/online      {"charIds":[1,2]}                       200 {"online":false}
 //   POST /api/lobby/sessions/enter         {"contentId","charId","key":"<40 hex>","serverAddr","serverPort",
-//                                           "clientAddr","clientVersion","clientExpansions","lobbyToken",
-//                                           "account":{"polId"}}  200 {}
-//   GET  /api/lobby/session                X-Lobby-Session: <lobbyToken>           200 {"contentId":1,"charId":1}
+//                                           "clientAddr","clientVersion","clientExpansions","account":{"polId"}}
+//        200 {}. 409 while the character, or another character of the same POL ID, is in this world.
 //
 // A refusal is 4xx with {"error":<lobby error code>} for a name (313 unavailable, 314 name server failure) and
 // {"error":0,"message":"..."} for anything else; 401 for a wrong key, 5xx when the database fails.
