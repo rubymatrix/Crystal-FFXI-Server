@@ -51,8 +51,8 @@
 #include "ai/states/weaponskill_state.h"
 
 #include "packets/char_status.h"
-#include "packets/compat/profile.h"
 #include "packets/char_sync.h"
+#include "packets/compat/profile.h"
 #include "packets/s2c/0x009_message.h"
 #include "packets/s2c/0x00b_logout.h"
 #include "packets/s2c/0x01b_job_info.h"
@@ -6783,8 +6783,7 @@ auto SendToZone(CCharEntity* PChar, const xi::ZoneId zoneId) -> bool
     if (!compat::zoneAvailable(PChar->PSession, static_cast<uint16>(zoneId)) && static_cast<uint16>(zoneId) != homeZone &&
         compat::zoneAvailable(PChar->PSession, homeZone))
     {
-        ShowInfoFmt("charutils::SendToZone : {}'s client ({}) has no data for zone {}; sending them to their home point", PChar->name,
-                    PChar->PSession->client.describe(), zoneId);
+        ShowInfoFmt("charutils::SendToZone : {}'s client ({}) has no data for zone {}; sending them to their home point", PChar->name, PChar->PSession->client.describe(), zoneId);
         PChar->pushPacket<GP_SERV_COMMAND_SYSTEMMES>(0, 0, MsgStd::CouldNotEnter);
         PChar->loc.boundary    = 0;
         PChar->loc.p           = PChar->profile.home_point.p;
