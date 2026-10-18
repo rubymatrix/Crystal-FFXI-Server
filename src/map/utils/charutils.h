@@ -311,8 +311,8 @@ uint8 getRangedItemLevel(CCharEntity* PChar);
 bool hasEntitySpawned(CCharEntity* PChar, CBaseEntity* entity);
 
 auto getCharIdFromName(const std::string& name) -> uint32;
-auto getAccountIdFromName(const std::string& name) -> uint32;
-auto getCharIdAndAccountIdFromName(const std::string& name) -> std::pair<uint32, uint32>;
+auto getCharIdAndPolIdFromName(const std::string& name) -> std::pair<uint32, uint64>;
+auto isSamePolAccount(const CCharEntity* PChar, uint64 polId) -> bool;
 
 void forceSynthCritFail(const std::string& sourceFunction, CCharEntity* PChar);
 

@@ -8,7 +8,7 @@
 --
 
 CREATE TABLE IF NOT EXISTS `account_vars` (
-  `accountid` int(10) unsigned NOT NULL,
+  `accountid` bigint(20) unsigned NOT NULL,
   `varname` varchar(30) NOT NULL,
   `value` int(11) NOT NULL,
   `expiry` int(11) NOT NULL DEFAULT 0,

@@ -22,7 +22,7 @@
 namespace accountvars
 {
 
-auto fetchAccountVar(const uint32 accountId, const std::string& varname) -> int32
+auto fetchAccountVar(const uint64 accountId, const std::string& varname) -> int32
 {
     const auto rset = db::preparedStmt("SELECT value, expiry FROM account_vars WHERE accountid = ? AND varname = ? LIMIT 1", accountId, varname);
 
@@ -44,7 +44,7 @@ auto fetchAccountVar(const uint32 accountId, const std::string& varname) -> int3
 }
 
 // A value of zero deletes the variable
-void persistAccountVar(const uint32 accountId, const std::string& varname, const int32 value, const uint32 expiry)
+void persistAccountVar(const uint64 accountId, const std::string& varname, const int32 value, const uint32 expiry)
 {
     if (expiry > 0 && expiry <= earth_time::timestamp())
     {
@@ -77,7 +77,7 @@ class AccountVarsModule : public CPPModule
         TracyZoneScoped;
 
         // Startup cleanup of expired account variables
-        // (keyed by the PlayOnline lobby's account: CCharEntity::account, from lobbyutils)
+        // (keyed by the PlayOnline account: CCharEntity::polId)
         uint32 currentTimestamp = earth_time::timestamp();
         db::preparedStmt("DELETE FROM account_vars WHERE expiry > 0 AND expiry <= ?", currentTimestamp);
 
@@ -88,7 +88,7 @@ class AccountVarsModule : public CPPModule
         {
             if (auto PChar = dynamic_cast<CCharEntity*>(PLuaBaseEntity->GetBaseEntity()))
             {
-                return accountvars::fetchAccountVar(PChar->account, varname);
+                return accountvars::fetchAccountVar(PChar->polId, varname);
             }
 
             return 0;
@@ -107,7 +107,7 @@ class AccountVarsModule : public CPPModule
                     expiryValue = expiry.as<uint32>();
                 }
 
-                accountvars::persistAccountVar(PChar->account, varname, value, expiryValue);
+                accountvars::persistAccountVar(PChar->polId, varname, value, expiryValue);
             }
         };
     }

@@ -32,7 +32,6 @@
 #include "packets/s2c/0x00b_logout.h"
 
 #include "utils/charutils.h"
-#include "utils/lobbyutils.h"
 #include "utils/zoneutils.h"
 
 #include "ipc_client.h"
@@ -366,7 +365,7 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
 
             std::ignore = langID;
 
-            auto rset = db::preparedStmt("SELECT c.accid, s.session_key, s.lobby_token "
+            auto rset = db::preparedStmt("SELECT c.accid, c.pol_id, s.session_key "
                                          "FROM chars c "
                                          "LEFT JOIN accounts_sessions s ON s.charid = c.charid "
                                          "WHERE c.charid = ? LIMIT 1",
@@ -379,6 +378,14 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
 
             accountID = rset->get<uint32>("accid");
 
+            // The lobby writes the PlayOnline account on every enter, so a character without one did not come
+            // through it
+            if (rset->get<uint64>("pol_id") == 0)
+            {
+                ShowError("recv_parse: charid %u has no PlayOnline account (chars.pol_id is 0)", packetCharID);
+                return -1;
+            }
+
             if (!rset->isNull("session_key"))
             {
                 db::extractFromBlob(rset, "session_key", PSession->blowfish.key);
@@ -390,15 +397,11 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
                 return -1;
             }
 
-            const auto lobbyToken = rset->isNull("lobby_token") ? std::string() : rset->get<std::string>("lobby_token");
-
             PSession->PChar     = charutils::LoadChar(packetCharID);
             PSession->charID    = packetCharID;
             PSession->accountID = accountID;
 
             auto* PChar = PSession->PChar.get();
-
-            lobbyutils::loadAccount(PChar, lobbyToken);
 
             PChar->PSession = PSession;
 

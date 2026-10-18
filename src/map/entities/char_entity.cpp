@@ -128,7 +128,7 @@ CCharEntity::CCharEntity()
     m_isPCHidden = false;
 
     accid        = 0;
-    account      = 0;
+    polId        = 0;
     m_GMlevel    = 0;
     m_isGMHidden = false;
 

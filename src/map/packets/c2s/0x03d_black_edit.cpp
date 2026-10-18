@@ -47,7 +47,7 @@ void GP_CLI_COMMAND_BLACK_EDIT::process(MapSession* PSession, CCharEntity* PChar
 {
     const auto name = db::escapeString(asStringFromUntrustedSource(this->Data.Name, 15));
 
-    const auto charid = charutils::getCharIdAndAccountIdFromName(name).first;
+    const auto charid = charutils::getCharIdFromName(name);
     if (!charid)
     {
         sendFailPacket(PChar);

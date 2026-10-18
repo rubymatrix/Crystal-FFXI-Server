@@ -39,7 +39,7 @@ class AccountSealTimersModule : public CPPModule
         }
 
         // An expired timer reads as 0 and is removed by account_vars
-        const auto expirationTimestamp = static_cast<uint32>(accountvars::fetchAccountVar(PChar->account, SealTimerVarName));
+        const auto expirationTimestamp = static_cast<uint32>(accountvars::fetchAccountVar(PChar->polId, SealTimerVarName));
         const auto currentTimestamp    = earth_time::timestamp();
 
         if (expirationTimestamp <= currentTimestamp)
@@ -88,7 +88,7 @@ class AccountSealTimersModule : public CPPModule
         const auto expirationTimestamp = static_cast<int32>(earth_time::timestamp() + static_cast<uint32>(remainingSeconds));
 
         // Mirror the value into expiry so the row cleans itself up
-        accountvars::persistAccountVar(PChar->account, SealTimerVarName, expirationTimestamp, static_cast<uint32>(expirationTimestamp));
+        accountvars::persistAccountVar(PChar->polId, SealTimerVarName, expirationTimestamp, static_cast<uint32>(expirationTimestamp));
     }
 };
 

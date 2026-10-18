@@ -329,6 +329,7 @@ auto LoadFromCharsSQL(CCharEntity* PChar) -> void
                                        "moghouse, "
                                        "boundary, "
                                        "accid, "
+                                       "pol_id, "
                                        "home_zone, "
                                        "home_rot, "
                                        "home_x, "
@@ -374,7 +375,7 @@ auto LoadFromCharsSQL(CCharEntity* PChar) -> void
         PChar->m_moghouseID   = rset->get<uint32>("moghouse");
         PChar->loc.boundary   = rset->get<uint16>("boundary");
         PChar->accid          = rset->get<uint32>("accid");
-        PChar->account        = PChar->accid; // the character's own until the lobby says whose it is (lobbyutils)
+        PChar->polId          = rset->get<uint64>("pol_id");
 
         PChar->profile.home_point.destination = rset->get<xi::ZoneId>("home_zone");
         PChar->profile.home_point.p.rotation  = rset->get<uint8>("home_rot");
@@ -7465,30 +7466,24 @@ uint32 getCharIdFromName(const std::string& name)
     return 0;
 }
 
-uint32 getAccountIdFromName(const std::string& name)
+// The charid and POL ID of a live character; a POL ID of 0 means the lobby has not sent it yet
+auto getCharIdAndPolIdFromName(const std::string& name) -> std::pair<uint32, uint64>
 {
     TracyZoneScoped;
 
-    const auto rset = db::preparedStmt("SELECT accid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
+    const auto rset = db::preparedStmt("SELECT charid, pol_id FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
     FOR_DB_SINGLE_RESULT(rset)
     {
-        return rset->get<uint32>("accid");
-    }
-
-    return 0;
-}
-
-auto getCharIdAndAccountIdFromName(const std::string& name) -> std::pair<uint32, uint32>
-{
-    TracyZoneScoped;
-
-    const auto rset = db::preparedStmt("SELECT charid, accid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
-    FOR_DB_SINGLE_RESULT(rset)
-    {
-        return { rset->get<uint32>("charid"), rset->get<uint32>("accid") };
+        return { rset->get<uint32>("charid"), rset->get<uint64>("pol_id") };
     }
 
     return { 0, 0 };
+}
+
+// Whether a POL ID is the character's own PlayOnline account
+auto isSamePolAccount(const CCharEntity* PChar, const uint64 polId) -> bool
+{
+    return polId != 0 && polId == PChar->polId;
 }
 
 void forceSynthCritFail(const std::string& sourceFunction, CCharEntity* PChar)

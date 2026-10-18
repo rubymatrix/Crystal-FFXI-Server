@@ -919,8 +919,8 @@ using Lost                    = xi::Flag<struct LostTag>;
 
 // The daily allowance lives on the account, which only a module knows how to reach. It hands
 // these in at startup, and without them an angler is never held back
-using AccountMeterFetch   = std::function<int32(uint32 accountId, const std::string& varName)>;
-using AccountMeterPersist = std::function<void(uint32 accountId, const std::string& varName, int32 value, uint32 expiry)>;
+using AccountMeterFetch   = std::function<int32(uint64 polId, const std::string& varName)>;
+using AccountMeterPersist = std::function<void(uint64 polId, const std::string& varName, int32 value, uint32 expiry)>;
 
 void SetAccountMeterAccess(AccountMeterFetch fetch, AccountMeterPersist persist);
 
