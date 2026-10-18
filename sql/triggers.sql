@@ -30,15 +30,6 @@ BEGIN
     END IF;
 END $$
 
-DROP TRIGGER IF EXISTS account_delete $$
-CREATE TRIGGER account_delete
-    BEFORE DELETE ON accounts
-    FOR EACH ROW
-BEGIN
-    DELETE FROM `accounts_banned` WHERE `accid` = OLD.id;
-    DELETE FROM `chars` WHERE `accid` = OLD.id;
-END $$
-
 DROP TRIGGER IF EXISTS session_delete $$
 CREATE TRIGGER session_delete
     BEFORE DELETE ON accounts_sessions

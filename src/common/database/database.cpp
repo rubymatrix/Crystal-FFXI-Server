@@ -259,7 +259,6 @@ auto db::checkTriggers() -> void
     const auto triggerQuery = "SHOW TRIGGERS WHERE `Trigger` LIKE ?";
 
     const auto triggers = {
-        "account_delete",
         "session_delete",
         "auction_house_list",
         "auction_house_buy",
