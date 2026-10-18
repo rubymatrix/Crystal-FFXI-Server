@@ -195,16 +195,23 @@ constexpr std::array<const char*, 22> JobColumns = {
     "war", "mnk", "whm", "blm", "rdm", "thf", "pld", "drk", "bst", "brd", "rng", "sam", "nin", "drg", "smn", "blu", "cor", "pup", "dnc", "sch", "geo", "run"
 };
 
-// The character as the lobby shows it in the list, if it is on this content id
+// The character as the lobby shows it in the list, if it is on this content id. Charid 0 asks for whichever
+// character the content id holds, which is how the lobby finishes a create it lost the answer to.
 auto characterInfo(uint32 contentId, uint32 charId) -> json
 {
+    if (contentId == 0)
+    {
+        return { { "found", false } };
+    }
+
     auto rset = run("SELECT chars.charid, charname, doRename, pos_zone, mjob, sjob, race, face, head, body, hands, legs, feet, main, sub, "
                     "nation, size, war, mnk, whm, blm, rdm, thf, pld, drk, bst, brd, rng, sam, nin, drg, smn, blu, cor, pup, dnc, sch, geo, run "
                     "FROM chars "
                     "INNER JOIN char_stats ON char_stats.charid = chars.charid "
                     "INNER JOIN char_look ON char_look.charid = chars.charid "
                     "INNER JOIN char_jobs ON char_jobs.charid = chars.charid "
-                    "WHERE chars.charid = ? AND chars.accid = ? LIMIT 1",
+                    "WHERE (chars.charid = ? OR ? = 0) AND chars.accid = ? LIMIT 1",
+                    charId,
                     charId,
                     contentId);
     if (!rset->next())
@@ -216,7 +223,7 @@ auto characterInfo(uint32 contentId, uint32 charId) -> json
     return {
         { "found", true },
         { "contentId", contentId },
-        { "charId", charId },
+        { "charId", rset->get<uint32>("charid") },
         { "name", rset->get<std::string>("charname") },
         { "rename", rset->get<uint8>("doRename") != 0 },
         { "zone", rset->get<uint16>("pos_zone") },
@@ -235,6 +242,14 @@ auto characterInfo(uint32 contentId, uint32 charId) -> json
         { "nation", rset->get<uint8>("nation") },
         { "size", rset->get<uint8>("size") },
     };
+}
+
+auto sameName(const std::string& a, const std::string& b) -> bool
+{
+    return std::ranges::equal(a, b, [](unsigned char x, unsigned char y)
+                              {
+                                  return std::tolower(x) == std::tolower(y);
+                              });
 }
 
 auto owns(uint32 contentId, uint32 charId) -> bool
@@ -319,6 +334,7 @@ void createCharacter(const httplib::Request& req, httplib::Response& res)
 {
     const auto j         = body(req);
     const auto contentId = j.at("contentId").get<uint32>();
+    const auto polId     = j.at("polId").get<uint64>();
     const auto name      = j.at("name").get<std::string>();
     const auto race      = j.at("race").get<uint8>();
     const auto face      = j.at("face").get<uint8>();
@@ -327,25 +343,32 @@ void createCharacter(const httplib::Request& req, httplib::Response& res)
     const auto nation    = j.at("nation").get<uint8>();
     const auto zone      = j.at("startZone").get<uint32>();
 
-    if (contentId == 0 || race < 1 || race > 8 || size > 2 || face > 15 || job < 1 || job > 6 || !startZoneAllowed(nation, zone))
+    if (contentId == 0 || polId == 0 || race < 1 || race > 8 || size > 2 || face > 15 || job < 1 || job > 6 || !startZoneAllowed(nation, zone))
     {
         refuse(400, fmt::format("invalid character for content id {}", contentId));
     }
 
     const std::lock_guard lock(mutationMutex);
 
+    // A content id holds one character. The lobby sends a create again when it never got the answer, and gets the
+    // character it already made back.
+    {
+        auto rset = run("SELECT charid, charname, pol_id FROM chars WHERE accid = ? LIMIT 1", contentId);
+        if (rset->next())
+        {
+            if (rset->get<uint64>("pol_id") == polId && sameName(rset->get<std::string>("charname"), name))
+            {
+                ShowInfoFmt("lobby_api: create of {} on content id {} repeated; it is character {}", name, contentId, rset->get<uint32>("charid"));
+                reply(res, 200, { { "charId", rset->get<uint32>("charid") } });
+                return;
+            }
+            refuse(409, "content id already has a character");
+        }
+    }
+
     if (const auto error = nameError(name))
     {
         refuse(409, "name unavailable", error);
-    }
-
-    // A content id holds one character
-    {
-        auto rset = run("SELECT COUNT(*) AS `n` FROM chars WHERE accid = ?", contentId);
-        if (rset->next() && rset->get<uint32>("n") != 0)
-        {
-            refuse(409, "content id already has a character");
-        }
     }
 
     const auto charId = nextCharId();
@@ -359,7 +382,7 @@ void createCharacter(const httplib::Request& req, httplib::Response& res)
     const auto created  = db::transaction(
         [&]()
         {
-            run("INSERT INTO chars(charid,accid,charname,pos_zone,nation) VALUES(?, ?, ?, ?, ?)", charId, contentId, name, zone, nation);
+            run("INSERT INTO chars(charid,accid,pol_id,charname,pos_zone,nation) VALUES(?, ?, ?, ?, ?, ?)", charId, contentId, polId, name, zone, nation);
             run("INSERT INTO char_look(charid,face,race,size) VALUES(?, ?, ?, ?)", charId, face, race, size);
             run("INSERT INTO char_stats(charid,mjob) VALUES(?, ?)", charId, job);
             run("INSERT INTO char_exp(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
@@ -467,8 +490,9 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
     const auto version    = j.at("clientVersion").get<std::string>();
     const auto expansions = j.at("clientExpansions").get<uint32>();
     const auto token      = j.at("lobbyToken").get<std::string>();
+    const auto polId      = j.at("account").at("polId").get<uint64>();
 
-    if (!key || contentId == 0 || token.size() != 64 || version.size() > 16)
+    if (!key || contentId == 0 || polId == 0 || token.size() != 64 || version.size() > 16)
     {
         refuse(400, "invalid session");
     }
@@ -482,6 +506,19 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
     if (isOnline(charId))
     {
         refuse(409, "character is still logged in");
+    }
+
+    // The lobby is the authority on which PlayOnline account owns a content id
+    {
+        auto rset = run("SELECT pol_id FROM chars WHERE charid = ?", charId);
+        if (rset->next() && rset->get<uint64>("pol_id") != polId)
+        {
+            if (rset->get<uint64>("pol_id") != 0)
+            {
+                ShowWarningFmt("lobby_api: character {} moves from POL ID {} to {}", charId, rset->get<uint64>("pol_id"), polId);
+            }
+            run("UPDATE chars SET pol_id = ? WHERE charid = ?", polId, charId);
+        }
     }
 
     uint8 sessionKey[20] = {};

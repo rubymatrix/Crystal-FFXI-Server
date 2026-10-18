@@ -26,20 +26,22 @@
 //
 // Every route is under /api/lobby and needs `Authorization: Bearer <network.LOBBY_API_KEY>`. With no key set the
 // routes answer 404, so a world that does not serve a lobby exposes nothing. Bodies and answers are JSON. A
-// character is named by the content id (chars.accid) it was made on and its charid; the lobby's own content id to
-// PlayOnline member mapping never reaches the world.
+// character is named by the content id (chars.accid) it was made on and its charid. The PlayOnline account it
+// belongs to is the numeric POL ID (chars.pol_id), which the lobby sends on create and on every enter.
 //
 //   POST /api/lobby/characters/list        {"characters":[{"contentId":1,"charId":1}, ...]}
 //        200 {"characters":[{"found":true,"contentId":1,"charId":1,"name":"...", ...}, {"found":false}, ...]}
-//        One answer per request, in order; not found also covers a character on another content id.
+//        One answer per request, in order; not found also covers a character on another content id. charId 0
+//        finds whichever character the content id holds.
 //   POST /api/lobby/characters/check-name  {"name":"Foo"}                          200 {"error":0}
-//   POST /api/lobby/characters/create      {"contentId","name","race","face","size","job","nation","startZone"}
-//        200 {"charId":3}
+//   POST /api/lobby/characters/create      {"contentId","polId","name","race","face","size","job","nation","startZone"}
+//        200 {"charId":3}. Sent again with the same content id, POL ID and name, it answers the same charid.
 //   POST /api/lobby/characters/rename      {"contentId","charId","name"}           200 {}
 //   POST /api/lobby/characters/delete      {"contentId","charId"}                  200 {}
 //   POST /api/lobby/characters/online      {"charIds":[1,2]}                       200 {"online":false}
 //   POST /api/lobby/sessions/enter         {"contentId","charId","key":"<40 hex>","serverAddr","serverPort",
-//                                           "clientAddr","clientVersion","clientExpansions","lobbyToken"}  200 {}
+//                                           "clientAddr","clientVersion","clientExpansions","lobbyToken",
+//                                           "account":{"polId"}}  200 {}
 //   GET  /api/lobby/session                X-Lobby-Session: <lobbyToken>           200 {"contentId":1,"charId":1}
 //
 // A refusal is 4xx with {"error":<lobby error code>} for a name (313 unavailable, 314 name server failure) and
