@@ -168,7 +168,9 @@ auto run(const std::string& query, Args&&... args) -> std::unique_ptr<db::Result
 auto validName(const std::string& name) -> bool
 {
     return name.size() >= 3 && name.size() <= 15 && std::ranges::all_of(name, [](unsigned char c)
-                                                                         { return std::isalpha(c) != 0 && c < 0x80; });
+                                                                        {
+                                                                            return std::isalpha(c) != 0 && c < 0x80;
+                                                                        });
 }
 
 // 0 if the name can be given to a character of this world, else the lobby error to show. Deleted characters keep
@@ -190,8 +192,7 @@ auto nameError(const std::string& name) -> uint32
 }
 
 constexpr std::array<const char*, 22> JobColumns = {
-    "war", "mnk", "whm", "blm", "rdm", "thf", "pld", "drk", "bst", "brd", "rng",
-    "sam", "nin", "drg", "smn", "blu", "cor", "pup", "dnc", "sch", "geo", "run"
+    "war", "mnk", "whm", "blm", "rdm", "thf", "pld", "drk", "bst", "brd", "rng", "sam", "nin", "drg", "smn", "blu", "cor", "pup", "dnc", "sch", "geo", "run"
 };
 
 // The character as the lobby shows it in the list, if it is on this content id
@@ -245,7 +246,7 @@ auto owns(uint32 contentId, uint32 charId) -> bool
 // The next free charid that fits 16 bits; past 0xFFFF, the first gap. 0: none.
 auto nextCharId() -> uint32
 {
-    auto rset = run("SELECT COALESCE(MAX(charid), 0) + 1 AS `id` FROM chars WHERE charid <= ?", MaxCharId);
+    auto   rset   = run("SELECT COALESCE(MAX(charid), 0) + 1 AS `id` FROM chars WHERE charid <= ?", MaxCharId);
     uint32 charId = rset->next() ? rset->get<uint32>("id") : 1;
     if (charId <= MaxCharId)
     {
@@ -293,7 +294,7 @@ auto fromHex(const std::string& hex) -> std::optional<std::array<uint8, 20>>
 
 void listCharacters(const httplib::Request& req, httplib::Response& res)
 {
-    const auto j = body(req);
+    const auto  j         = body(req);
     const auto& requested = j.at("characters");
     if (!requested.is_array() || requested.size() > 64)
     {
@@ -439,7 +440,7 @@ auto isOnline(uint32 charId) -> bool
 
 void online(const httplib::Request& req, httplib::Response& res)
 {
-    const auto j       = body(req);
+    const auto  j       = body(req);
     const auto& charIds = j.at("charIds");
     if (!charIds.is_array() || charIds.size() > 64)
     {
