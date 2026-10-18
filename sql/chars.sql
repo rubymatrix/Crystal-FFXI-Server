@@ -7,6 +7,7 @@ CREATE TABLE `chars` (
   `charid` int(10) unsigned NOT NULL,
   `accid` int(10) unsigned NOT NULL,
   `original_accid` int(10) unsigned NOT NULL DEFAULT '0',
+  `pol_id` bigint(20) unsigned NOT NULL DEFAULT '0',
   `charname` varchar(15) NOT NULL,
   `nation` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `pos_zone` smallint(3) unsigned NOT NULL,
@@ -50,5 +51,6 @@ CREATE TABLE `chars` (
   `last_logout` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `lastupdate` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`charid`),
+  KEY `pol_id` (`pol_id`),
   FULLTEXT KEY `charname` (`charname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
