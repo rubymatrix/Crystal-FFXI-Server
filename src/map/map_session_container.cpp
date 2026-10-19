@@ -162,19 +162,6 @@ auto MapSessionContainer::getPendingSessionByCharId(uint32 charId) -> MapSession
     return nullptr;
 }
 
-auto MapSessionContainer::getSessionByAccountId(uint32 accountId) -> MapSession*
-{
-    TracyZoneScoped;
-
-    const auto it = std::ranges::find_if(sessions_,
-                                         [&](const auto& entry)
-                                         {
-                                             return entry.second->accountID == accountId;
-                                         });
-
-    return it != sessions_.end() ? it->second.get() : nullptr;
-}
-
 auto MapSessionContainer::getSessionByCharName(const std::string& name) -> MapSession*
 {
     TracyZoneScoped;

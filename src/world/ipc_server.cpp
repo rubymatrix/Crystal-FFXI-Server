@@ -387,19 +387,6 @@ void IPCServer::handleMessage_EmptyStruct(const IPP& ipp, const ipc::EmptyStruct
     ShowWarningFmt("Received EmptyStruct message from {} - this is probably a bug", ipp.toString());
 }
 
-void IPCServer::handleMessage_AccountLogin(const IPP& ipp, const ipc::AccountLogin& message)
-{
-    TracyZoneScoped;
-
-    DebugIPCFmt("Received AccountLogin message from {} for account {}", ipp.toString(), message.accountId);
-
-    for (const auto& zoneIIP : getIPPsForAllZones())
-    {
-        DebugIPCFmt("Message: -> rerouting to all zones on {}", ipp.toString());
-        sendMessage(zoneIIP, message);
-    }
-}
-
 void IPCServer::handleMessage_CharZone(const IPP& ipp, const ipc::CharZone& message)
 {
     TracyZoneScoped;

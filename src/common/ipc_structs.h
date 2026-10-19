@@ -43,11 +43,6 @@ struct EmptyStruct
     uint8 unused{}; // glaze rejects an aggregate with no members
 };
 
-struct AccountLogin
-{
-    uint32 accountId{};
-};
-
 struct CharZone
 {
     uint32     charId{};

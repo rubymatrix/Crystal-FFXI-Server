@@ -54,7 +54,7 @@ def build_chat_packet(gm_flag, zone, sender, msg):
     }
 
     # MessageType::ChatMessageServerMessage, see build/generated/ipc_stubs.h
-    return bytearray([12]) + cbor2.dumps(body)
+    return bytearray([11]) + cbor2.dumps(body)
 
 
 def send_server_message(msg):

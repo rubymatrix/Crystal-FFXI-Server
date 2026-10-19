@@ -360,12 +360,11 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
 
         if (PSession->PChar == nullptr)
         {
-            uint16 langID    = loginPacket.uCliLang;
-            uint32 accountID = 0;
+            uint16 langID = loginPacket.uCliLang;
 
             std::ignore = langID;
 
-            auto rset = db::preparedStmt("SELECT c.accid, c.pol_id, s.session_key "
+            auto rset = db::preparedStmt("SELECT c.pol_id, s.session_key "
                                          "FROM chars c "
                                          "LEFT JOIN accounts_sessions s ON s.charid = c.charid "
                                          "WHERE c.charid = ? LIMIT 1",
@@ -375,8 +374,6 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
                 ShowError("recv_parse: Cannot load char %u (no such charid)", packetCharID);
                 return -1;
             }
-
-            accountID = rset->get<uint32>("accid");
 
             // The lobby writes the PlayOnline account on every enter, so a character without one did not come
             // through it
@@ -397,9 +394,8 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
                 return -1;
             }
 
-            PSession->PChar     = charutils::LoadChar(packetCharID);
-            PSession->charID    = packetCharID;
-            PSession->accountID = accountID;
+            PSession->PChar  = charutils::LoadChar(packetCharID);
+            PSession->charID = packetCharID;
 
             auto* PChar = PSession->PChar.get();
 

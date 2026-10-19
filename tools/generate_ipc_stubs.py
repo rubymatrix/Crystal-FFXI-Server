@@ -16,7 +16,6 @@ import sys
 IPC_STRUCT_NAMES = [
     "EmptyStruct",
 
-    "AccountLogin",
     "CharZone",
     "CharVarUpdate",
 
