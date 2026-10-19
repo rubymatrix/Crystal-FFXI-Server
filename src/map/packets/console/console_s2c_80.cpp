@@ -112,21 +112,18 @@ auto magicData(MapSession*, CBasicPacket& packet) -> Result
 }
 
 // 0x0AC - GP_SERV_COMMAND_DATA
-// The 2010 client has one 1024-bit table: job abilities, then pet abilities, then weapon skills.
-// Today's packet has a separate table for each, so they're packed into one. Pet abilities and
-// weapon skills past the first 256 don't fit. Traits are sent as their own FEAT_DATA (0x0AB).
+// The 2010 client has one 1024-bit table: job abilities, then traits, then pet abilities, then
+// weapon skills. Today's packet has a separate table for each, so they're packed into one.
+// The 2010 client lists job traits from bits 384-511, where today's job abilities are all newer.
+// It only has names for traits up to 111, so newer ones (Elemental Celerity and later) are left out.
+// Pet abilities and weapon skills past the first 256 don't fit.
 auto commandData(MapSession*, CBasicPacket& packet) -> Result
 {
     Rewrite rw(packet);
 
-    CBasicPacket feat;
-    feat.setType(0x0AB);
-    feat.setSize(0x04 + 0x14);
-    std::memcpy(static_cast<uint8*>(feat) + 0x04, rw.src + 0xC4, 0x14);
-    emitS2C(feat, feat.getSize());
-
     rw.clear(0x04 + 0x80);
-    rw.move(0x44, 0x04, 0x40); // job abilities: bits 0-511
+    rw.move(0x44, 0x04, 0x30); // job abilities 0-383: bits 0-383
+    rw.move(0xC4, 0x34, 0x0E); // traits 0-111: bits 384-495
     rw.move(0x84, 0x44, 0x20); // pet abilities 512-767: bits 512-767
     rw.move(0x04, 0x64, 0x20); // weapon skills 0-255: bits 768-1023
     return Result::Rewritten;
