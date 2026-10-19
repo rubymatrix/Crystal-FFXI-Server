@@ -188,6 +188,21 @@ auto MapSessionContainer::getSessionByCharName(const std::string& name) -> MapSe
     return it != sessions_.end() ? it->second.get() : nullptr;
 }
 
+auto MapSessionContainer::getSessionsByIP(const uint32 ip) -> std::vector<MapSession*>
+{
+    TracyZoneScoped;
+
+    std::vector<MapSession*> found;
+    for (const auto& [ipp, session] : sessions_)
+    {
+        if (ipp.getIP() == ip)
+        {
+            found.push_back(session.get());
+        }
+    }
+    return found;
+}
+
 void MapSessionContainer::cleanupSessions(IPP mapIPP)
 {
     TracyZoneScoped;

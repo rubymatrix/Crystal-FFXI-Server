@@ -23,6 +23,7 @@
 
 #include "common/ipp.h"
 #include <map>
+#include <vector>
 
 class CZone;
 class CCharEntity;
@@ -44,6 +45,7 @@ public:
     auto getPendingSessionByCharId(uint32 charId) -> MapSession*;
     auto getSessionByAccountId(uint32 accountId) -> MapSession*;
     auto getSessionByCharName(const std::string& name) -> MapSession*;
+    auto getSessionsByIP(uint32 ip) -> std::vector<MapSession*>;
 
     void cleanupSessions(IPP mapIPP);
 

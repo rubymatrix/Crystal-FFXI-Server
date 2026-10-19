@@ -31,6 +31,7 @@
 #include "common/scheduler.h"
 #include "common/synchronized.h"
 
+#include "packets/search_list.h"
 #include "search.h"
 
 enum TCPREQUESTTYPE
@@ -71,8 +72,8 @@ private:
     void HandleAuctionHouseRequest();
     void HandleAuctionHouseHistory();
 
-    auto _HandleSearchRequest(uint16_t length) -> SearchRequest;
-    void SendPlayersList(const SearchRequest& sr);
+    auto _HandleSearchRequest(uint16_t length, SearchListLayout layout) -> SearchRequest;
+    void SendPlayersList(const SearchRequest& sr, SearchListLayout layout);
 
     Scheduler&               scheduler_;
     blowfish_t               blowfish_;

@@ -21,6 +21,8 @@
 
 #include "profile.h"
 
+#include "guards.h"
+
 #include "packets/console/console_profile.h"
 
 #include "common/logging.h"
@@ -317,9 +319,25 @@ auto translateS2C(MapSession* PSession, CBasicPacket& packet) -> Result
     }
 
     ActiveScope scope(profile);
-    const auto  id     = packet.getType();
-    const auto  size   = packet.getSize();
-    const auto  result = profile->translateS2C(PSession, packet);
+    const auto  id   = packet.getType();
+    const auto  size = packet.getSize();
+
+    // The event an event packet carries, read before a translator can change or drop it
+    uint16 eventId = 0;
+    if (id == 0x032 || id == 0x033)
+    {
+        eventId = packet.ref<uint16>(0x0C);
+    }
+    else if (id == 0x034)
+    {
+        eventId = packet.ref<uint16>(0x2C);
+    }
+
+    auto result = profile->translateS2C(PSession, packet);
+    if (guards::afterTranslateS2C(PSession, packet, id, eventId, result == Result::Drop))
+    {
+        result = Result::Rewritten;
+    }
     if (tracing())
     {
         ShowInfoFmt("{} trace: s2c {:03X} size {:03X} seq {} -> {} {:03X} size {:03X}", profile->name(), id, size, packet.getSequence(), resultName(result), packet.getType(), result == Result::Drop ? 0 : packet.getSize());

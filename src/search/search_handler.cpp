@@ -49,6 +49,9 @@
 namespace
 {
 
+// The tag the 2010 PS2 client gives the second flag word in search requests (today's clients use 0x16).
+constexpr uint8 kPs2Flags2Tag = 0x14;
+
 // The lobby version strings of the 2010 PS2 client: the same lines the map server pins to that client in
 // res/compat/ps2-20100904/versions.txt (one per line, # starts a comment)
 auto ps2_2010Builds() -> const std::unordered_set<std::string>&
@@ -60,7 +63,11 @@ auto ps2_2010Builds() -> const std::unordered_set<std::string>&
         std::string                     line;
         while (std::getline(file, line))
         {
-            line             = line.substr(0, line.find('#'));
+            if (const auto comment = line.find('#'); comment != std::string::npos)
+            {
+                line.resize(comment);
+            }
+
             const auto begin = line.find_first_not_of(" \t\r");
             if (begin == std::string::npos)
             {
@@ -322,9 +329,16 @@ void SearchHandler::read_func(const uint16_t length)
             }
             break;
             case TCP_AH_REQUEST:
-            case TCP_AH_REQUEST_MORE:
             {
                 HandleAuctionHouseRequest();
+            }
+            break;
+            case TCP_AH_REQUEST_MORE:
+            {
+                // The client asks for more when it has read a page without the final flag and the next page
+                // hasn't arrived yet. Every page of a reply is already sent at once, so there is nothing to add.
+                // The request has no body, so it can't be read as an AH request: the category byte is leftover
+                // padding and would return a list for a random category.
             }
             break;
             case TCP_AH_HISTORY_SINGLE:
@@ -379,7 +393,11 @@ void SearchHandler::HandleGroupListRequest()
     uint32       partyid      = ref<uint32>(buffer_.data(), 0x10);
     const uint32 allianceid   = ref<uint32>(buffer_.data(), 0x14);
     uint32       linkshellid1 = ref<uint32>(buffer_.data(), 0x18);
-    uint32       linkshellid2 = ref<uint32>(buffer_.data(), 0x1C);
+
+    // The 2010 PS2 client has one linkshell and sends 12 bytes here. What follows is padding,
+    // so there is no second linkshell to read.
+    const auto layout       = searchLayoutFor(ipAddress_);
+    uint32     linkshellid2 = layout == SearchListLayout::Ps2_2010 ? 0 : ref<uint32>(buffer_.data(), 0x1C);
 
     ShowInfoFmt("SEARCH::PartyID = {}", partyid);
     ShowInfoFmt("SEARCH::LinkshellIDs = {}, {}", linkshellid1, linkshellid2);
@@ -390,7 +408,7 @@ void SearchHandler::HandleGroupListRequest()
     {
         const auto PartyList = PDataLoader.GetPartyList(partyid, allianceid);
 
-        CPartyListPacket PPartyPacket(partyid, static_cast<uint32>(PartyList.size()));
+        CPartyListPacket PPartyPacket(partyid, static_cast<uint32>(PartyList.size()), layout);
 
         std::size_t membersSent = 0;
         for (const auto& player : PartyList)
@@ -423,7 +441,7 @@ void SearchHandler::HandleGroupListRequest()
 
         do
         {
-            CLinkshellListPacket PLinkshellPacket(linkshellid, totalResults);
+            CLinkshellListPacket PLinkshellPacket(linkshellid, totalResults, layout);
 
             while (currentResult < totalResults)
             {
@@ -472,7 +490,8 @@ void SearchHandler::HandleSearchComment()
 
 void SearchHandler::HandleSearchRequest(const uint16_t length)
 {
-    SendPlayersList(_HandleSearchRequest(length));
+    const auto layout = searchLayoutFor(ipAddress_);
+    SendPlayersList(_HandleSearchRequest(length, layout), layout);
 }
 
 // Friend list refreshes 20 character IDs at a time. uint16 count at 0x10, uint32 IDs from 0x12
@@ -501,10 +520,10 @@ void SearchHandler::HandleIdListRequest(const uint16_t length)
         return;
     }
 
-    SendPlayersList(sr);
+    SendPlayersList(sr, searchLayoutFor(ipAddress_));
 }
 
-void SearchHandler::SendPlayersList(const SearchRequest& sr)
+void SearchHandler::SendPlayersList(const SearchRequest& sr, const SearchListLayout layout)
 {
     const CDataLoader PDataLoader;
     int               totalCount = 0;
@@ -513,8 +532,6 @@ void SearchHandler::SendPlayersList(const SearchRequest& sr)
 
     const uint32 totalResults  = static_cast<uint32>(SearchList.size());
     uint32       currentResult = 0;
-
-    const auto layout = searchLayoutFor(ipAddress_);
 
     // Iterate through the search list, splitting up the results into
     // smaller chunks.
@@ -612,7 +629,7 @@ void SearchHandler::HandleAuctionHouseHistory()
     const auto             HistoryList = PDataLoader.GetAHItemHistory(ItemID, stack != 0);
     const AuctionHouseItem item        = PDataLoader.GetAHItemFromItemID(ItemID);
 
-    CAHHistoryPacket PAHPacket = CAHHistoryPacket(item, stack);
+    CAHHistoryPacket PAHPacket = CAHHistoryPacket(item, stack, searchLayoutFor(ipAddress_));
 
     for (const auto& i : HistoryList)
     {
@@ -625,7 +642,7 @@ void SearchHandler::HandleAuctionHouseHistory()
     searchPackets_.emplace_back(PAHPacket.GetData(), length);
 }
 
-auto SearchHandler::_HandleSearchRequest(const uint16_t length) -> SearchRequest
+auto SearchHandler::_HandleSearchRequest(const uint16_t length, const SearchListLayout layout) -> SearchRequest
 {
     // This function constructs a `search_req` based on which query should be sent to the database.
     // The results from the database will eventually be sent to the client.
@@ -660,6 +677,10 @@ auto SearchHandler::_HandleSearchRequest(const uint16_t length) -> SearchRequest
 
     uint8 commentType = 0;
 
+    // The 2010 client sends areas as 8 bits, puts an exact-match bit ("=Name") ahead of a 4-bit name length,
+    // and tags its second flag word 0x14 where today's clients use 0x16.
+    const bool ps2 = layout == SearchListLayout::Ps2_2010;
+
     while (bitOffset < workloadBits)
     {
         if ((bitOffset + 5) >= workloadBits)
@@ -668,7 +689,8 @@ auto SearchHandler::_HandleSearchRequest(const uint16_t length) -> SearchRequest
             break;
         }
 
-        const auto EntryType = static_cast<SearchType>(unpackBitsLE(&buffer_[0x11], bitOffset, 5));
+        const auto rawType   = static_cast<uint8>(unpackBitsLE(&buffer_[0x11], bitOffset, 5));
+        const auto EntryType = ps2 && rawType == kPs2Flags2Tag ? SearchType::Flags2 : static_cast<SearchType>(rawType);
         bitOffset += 5;
 
         if ((EntryType != SearchType::Friend) && (EntryType != SearchType::Linkshell) && (EntryType != SearchType::Linkshell2) && (EntryType != SearchType::Comment) && (EntryType != SearchType::Flags2))
@@ -696,9 +718,16 @@ auto SearchHandler::_HandleSearchRequest(const uint16_t length) -> SearchRequest
                         bitOffset = workloadBits;
                         break;
                     }
-                    // 5-bit field (0-31) clamped to name's 15 chars; still consume every char
-                    const uint8 rawNameLen = static_cast<uint8>(unpackBitsLE(&buffer_[0x11], bitOffset, 5));
-                    bitOffset += 5;
+                    // Names are matched by prefix either way, so the 2010 exact-match bit is skipped.
+                    if (ps2)
+                    {
+                        bitOffset += 1;
+                    }
+
+                    // Length clamped to the name's 15 chars; still consume every char
+                    const auto  lengthBits = ps2 ? 4 : 5;
+                    const uint8 rawNameLen = static_cast<uint8>(unpackBitsLE(&buffer_[0x11], bitOffset, lengthBits));
+                    bitOffset += lengthBits;
 
                     nameLen       = std::min<uint8>(rawNameLen, sizeof(name) - 1);
                     name[nameLen] = '\0';
@@ -724,8 +753,9 @@ auto SearchHandler::_HandleSearchRequest(const uint16_t length) -> SearchRequest
                 }
                 else // 8 Bit = 1 Byte per Area Code
                 {
-                    const auto area = static_cast<uint16>(unpackBitsLE(&buffer_[0x11], bitOffset, 10));
-                    bitOffset += 10;
+                    const auto areaBits = ps2 ? 8 : 10;
+                    const auto area     = static_cast<uint16>(unpackBitsLE(&buffer_[0x11], bitOffset, areaBits));
+                    bitOffset += areaBits;
 
                     // client controls entry count; only store while areas[] has room
                     if (areaCount < std::size(areas))

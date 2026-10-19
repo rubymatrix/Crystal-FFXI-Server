@@ -28,6 +28,7 @@
 #include "entities/char_entity.h"
 
 #include "packets/basic.h"
+#include "packets/compat/guards.h"
 #include "packets/compat/profile.h"
 #include "packets/s2c/0x00b_logout.h"
 
@@ -102,6 +103,7 @@ void MapNetworking::handle_incoming_packet(ByteSpan buffer, const IPP& ipp)
     int32 decryptCount = recv_parse(PBuff.data(), &size, PSession, ipp);
     if (PSession == nullptr)
     {
+        compat::guards::onUnknownAddress(ipp, mapSessions_.getSessionsByIP(ipp.getIP()));
         return;
     }
 
@@ -430,7 +432,11 @@ int32 MapNetworking::recv_parse(uint8* buff, size_t* buffsize, MapSession* PSess
         else
         {
             ShowDebugFmt("recv_parse: charid {} from {}: repeated 0x00A (retry {}), keeping sequence (server {}, client {})",
-                         packetCharID, ipp.toString(), loginPacket.unknown00, PSession->server_packet_id, PSession->client_packet_id);
+                         packetCharID,
+                         ipp.toString(),
+                         loginPacket.unknown00,
+                         PSession->server_packet_id,
+                         PSession->client_packet_id);
         }
 
         // On the PS2 client these two words are its login stage and receive-error history (gcZoneRecvError);
@@ -560,13 +566,25 @@ int32 MapNetworking::parse(uint8* buff, size_t* buffsize, MapSession* PSession)
             // We're copying in and bounding only exactly what we want, so it's safe.
             std::memcpy(&parseScratchPacket_.ref<uint8>(0), SmallPD_ptr, PACKET_SIZE);
 
-            if (PSession->client.translated() && compat::translateC2S(PSession, parseScratchPacket_) == compat::Result::Drop)
+            // A console client waits on some requests forever if nothing answers them (packets/compat/guards.h)
+            const bool translated = PSession->client.translated();
+            const bool dropped    = translated && compat::translateC2S(PSession, parseScratchPacket_) == compat::Result::Drop;
+            if (translated)
             {
-                continue;
+                compat::guards::beforeDispatch(PSession, PChar, parseScratchPacket_);
+            }
+            const size_t queued = PChar->getPacketList().size();
+
+            if (!dropped)
+            {
+                ShowTraceFmt("map::parse: Char: {} ({}): {}", PChar->getName(), PChar->id, hex16ToString(parseScratchPacket_.getType()));
+                packetSystem_.dispatch(SmallPD_Type, PSession, PChar, parseScratchPacket_);
             }
 
-            ShowTraceFmt("map::parse: Char: {} ({}): {}", PChar->getName(), PChar->id, hex16ToString(parseScratchPacket_.getType()));
-            packetSystem_.dispatch(SmallPD_Type, PSession, PChar, parseScratchPacket_);
+            if (translated)
+            {
+                compat::guards::afterDispatch(PSession, PChar, parseScratchPacket_, queued, dropped);
+            }
         }
     }
 
@@ -634,11 +652,13 @@ int32 MapNetworking::parse(uint8* buff, size_t* buffsize, MapSession* PSession)
 
         std::memcpy(PSession->server_packet_data.data(), buff, *buffsize);
 
+        compat::guards::onResend(PSession);
         return -1;
     }
 
     // GT: increase the number of the sent packet only if new data is sent
 
+    compat::guards::onNewDatagram(PSession);
     PSession->server_packet_id += 1;
 
     return 0;
@@ -705,7 +725,11 @@ int32 MapNetworking::send_parse(uint8* buff, size_t* buffsize, MapSession* PSess
                     incrementKeyAfterEncrypt = true;
 
                     ShowInfoFmt("send_parse: charid {}: 0x00B state {} to {} in datagram {} (client acked {})",
-                                PSession->charID, static_cast<uint32>(PSession->zone_type), PSession->zone_ipp.toString(), PSession->server_packet_id, PSession->client_packet_id);
+                                PSession->charID,
+                                static_cast<uint32>(PSession->zone_type),
+                                PSession->zone_ipp.toString(),
+                                PSession->server_packet_id,
+                                PSession->client_packet_id);
 
                     if (PSession->zone_type != GP_GAME_LOGOUT_STATE::LOGOUT)
                     {

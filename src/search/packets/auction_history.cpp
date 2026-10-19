@@ -27,7 +27,7 @@
 #include <algorithm>
 #include <cstring>
 
-CAHHistoryPacket::CAHHistoryPacket(const AuctionHouseItem item, const uint8 stack)
+CAHHistoryPacket::CAHHistoryPacket(const AuctionHouseItem item, const uint8 stack, const SearchListLayout layout)
 {
     // Comments and RE by atom0s
     ref<uint8>(m_PData, 0x0A)  = 0x80;        // flags, may be int8 as it's checked against negative.
@@ -38,6 +38,16 @@ CAHHistoryPacket::CAHHistoryPacket(const AuctionHouseItem item, const uint8 stac
     ref<uint16>(m_PData, 0x14) = 0;           // Unknown use
     ref<uint16>(m_PData, 0x16) = 0;           // Unknown use
     ref<uint16>(m_PData, 0x18) = item.ItemID;
+
+    // The 2010 client has no current price or category here. Its sales start right after the item number,
+    // so with today's header every price, date and name would be read 6 bytes off.
+    if (layout == SearchListLayout::Ps2_2010)
+    {
+        m_entriesStart               = 0x1A;
+        ref<uint16>(m_PData, (0x08)) = m_entriesStart;
+        return;
+    }
+
     ref<uint32>(m_PData, 0x1A) = stack != 0 ? item.StackAmount : item.SingleAmount;
     ref<uint16>(m_PData, 0x1E) = item.Category;
 }
@@ -46,13 +56,15 @@ void CAHHistoryPacket::AddItem(const AuctionHouseHistory& item)
 {
     if (m_count < 10)
     {
-        ref<uint32>(m_PData, (0x20 + 40 * m_count) + 0x00) = item.Price;
-        ref<uint32>(m_PData, (0x20 + 40 * m_count) + 0x04) = item.Data;
+        const auto entry = m_entriesStart + 40 * m_count;
 
-        std::memcpy(m_PData + 0x20 + 40 * m_count + 0x08, item.Name1.c_str(), std::min(item.Name1.size(), size_t(15)));
-        std::memcpy(m_PData + 0x20 + 40 * m_count + 0x18, item.Name2.c_str(), std::min(item.Name2.size(), size_t(15)));
+        ref<uint32>(m_PData, entry + 0x00) = item.Price;
+        ref<uint32>(m_PData, entry + 0x04) = item.Data;
 
-        ref<uint16>(m_PData, (0x08)) = 0x20 + 40 * ++m_count;
+        std::memcpy(m_PData + entry + 0x08, item.Name1.c_str(), std::min(item.Name1.size(), size_t(15)));
+        std::memcpy(m_PData + entry + 0x18, item.Name2.c_str(), std::min(item.Name2.size(), size_t(15)));
+
+        ref<uint16>(m_PData, (0x08)) = m_entriesStart + 40 * ++m_count;
     }
 }
 
@@ -75,5 +87,5 @@ auto CAHHistoryPacket::GetData() -> uint8*
 
 auto CAHHistoryPacket::GetSize() const -> uint16
 {
-    return 0x20 + 40 * m_count + 28;
+    return m_entriesStart + 40 * m_count + 28;
 }

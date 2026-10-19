@@ -23,11 +23,12 @@
 
 #include "common/cbasetypes.h"
 #include "data_loader.h"
+#include "search_list.h"
 
 class CAHHistoryPacket
 {
 public:
-    CAHHistoryPacket(AuctionHouseItem item, uint8 stack);
+    CAHHistoryPacket(AuctionHouseItem item, uint8 stack, SearchListLayout layout = SearchListLayout::Current);
 
     void AddItem(const AuctionHouseHistory& item);
 
@@ -35,6 +36,7 @@ public:
     auto GetSize() const -> uint16;
 
 private:
-    uint8 m_count{};
-    uint8 m_PData[475]{};
+    uint8  m_count{};
+    uint16 m_entriesStart{ 0x20 };
+    uint8  m_PData[475]{};
 };
