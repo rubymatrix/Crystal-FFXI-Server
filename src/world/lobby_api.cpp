@@ -46,6 +46,7 @@ namespace
 // Lobby error codes the client shows for a name (login_errors.h)
 constexpr uint32 ErrNameUnavailable = 313; // "The character name you entered is unavailable."
 constexpr uint32 ErrNameServer      = 314; // "Failed to register with the name server."
+constexpr uint32 ErrBanned          = 332; // "Could not connect to lobby server. Please check this title's news for announcements."
 
 // The charid is the low 16 bits of the sub id the lobby keeps for a character
 constexpr uint32 MaxCharId = 0xFFFF;
@@ -252,6 +253,13 @@ auto sameName(const std::string& a, const std::string& b) -> bool
                               });
 }
 
+// Whether the PlayOnline account is banned from this world (pol_bans, set with !banaccount)
+auto isBanned(uint64 polId) -> bool
+{
+    auto rset = run("SELECT COUNT(*) AS `n` FROM pol_bans WHERE pol_id = ? AND (banned_until = 0 OR banned_until > UNIX_TIMESTAMP())", polId);
+    return rset->next() && rset->get<uint32>("n") != 0;
+}
+
 auto owns(uint32 contentId, uint32 charId) -> bool
 {
     auto rset = run("SELECT COUNT(*) AS `n` FROM chars WHERE charid = ? AND accid = ?", charId, contentId);
@@ -349,6 +357,12 @@ void createCharacter(const httplib::Request& req, httplib::Response& res)
     }
 
     const std::lock_guard lock(mutationMutex);
+
+    if (isBanned(polId))
+    {
+        ShowWarningFmt("lobby_api: refused a character for content id {}: POL ID {} is banned", contentId, polId);
+        refuse(403, "PlayOnline account is banned from this world", ErrBanned);
+    }
 
     // A content id holds one character. The lobby sends a create again when it never got the answer, and gets the
     // character it already made back.
@@ -501,6 +515,11 @@ void enterWorld(const httplib::Request& req, httplib::Response& res)
     if (!owns(contentId, charId))
     {
         refuse(404, "character is not on that content id (deleted?)");
+    }
+    if (isBanned(polId))
+    {
+        ShowWarningFmt("lobby_api: refused character {}: POL ID {} is banned", charId, polId);
+        refuse(403, "PlayOnline account is banned from this world", ErrBanned);
     }
     if (isOnline(charId))
     {

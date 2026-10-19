@@ -43,6 +43,8 @@
 //                                           "clientAddr","clientVersion","clientExpansions","account":{"polId"}}
 //        200 {}. 409 while the character, or another character of the same POL ID, is in this world.
 //
+// Create and enter refuse a banned PlayOnline account (pol_bans) with 403 and {"error":332}.
+//
 // A refusal is 4xx with {"error":<lobby error code>} for a name (313 unavailable, 314 name server failure) and
 // {"error":0,"message":"..."} for anything else; 401 for a wrong key, 5xx when the database fails.
 namespace lobby_api

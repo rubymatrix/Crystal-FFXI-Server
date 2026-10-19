@@ -235,6 +235,7 @@ player_data = [
     "ip_exceptions.sql",
     "linkshell_concierge.sql",
     "linkshells.sql",
+    "pol_bans.sql",
     "server_variables.sql",
     "unity_system.sql",
 ]
