@@ -188,13 +188,6 @@ settings, default_settings = populate_settings()
 
 # These are the 'protected' files
 player_data = [
-    "accounts.sql",
-    "accounts_banned.sql",
-    "accounts_files.sql",
-    "accounts_friends.sql",
-    "accounts_messages.sql",
-    "accounts_profile.sql",
-    "accounts_totp.sql",
     "auction_house_items.sql",
     "auction_house.sql",
     "audit_bazaar.sql",
@@ -232,7 +225,6 @@ player_data = [
     "fishing_contest.sql",
     "fishing_contest_entries.sql",
     "help_desk.sql",
-    "ip_exceptions.sql",
     "linkshell_concierge.sql",
     "linkshells.sql",
     "pol_bans.sql",
