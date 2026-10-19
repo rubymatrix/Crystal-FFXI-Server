@@ -43,7 +43,7 @@ namespace lobby_api
 namespace
 {
 
-// Lobby error codes the client shows for a name (login_errors.h)
+// Lobby error codes the 2010 client shows (FFXI-3NNN)
 constexpr uint32 ErrNameUnavailable = 313; // "The character name you entered is unavailable."
 constexpr uint32 ErrNameServer      = 314; // "Failed to register with the name server."
 constexpr uint32 ErrBanned          = 332; // "Could not connect to lobby server. Please check this title's news for announcements."
