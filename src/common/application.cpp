@@ -300,6 +300,13 @@ void Application::requestExit()
     scheduler_.postToMainThread(
         [this]()
         {
+            // Let the engine release anything blocking a worker thread (like the world's
+            // HTTP server), or scheduler_.stop() would wait forever joining that worker.
+            if (engine_)
+            {
+                engine_->onShutdown();
+            }
+
             scheduler_.stop();
         });
 }

@@ -58,3 +58,13 @@ WorldEngine::WorldEngine(Scheduler& scheduler, ZMQService& zmqService, EnableHTT
 }
 
 WorldEngine::~WorldEngine() = default;
+
+void WorldEngine::onShutdown()
+{
+    // The HTTP server's listen() blocks a worker thread, so it has to stop before the
+    // scheduler joins its workers.
+    if (httpServer_)
+    {
+        httpServer_->stop();
+    }
+}

@@ -1,4 +1,4 @@
-/*
+﻿/*
 ===========================================================================
 
   Copyright (c) 2026 Project Crystal Dev Team
@@ -53,6 +53,12 @@ constexpr uint8 kShopSlots = 16;
 
 // The 2010 client's battle message tables have 0x400 entries.
 constexpr uint16 kBattleMessages = 0x400;
+
+// The 2010 client has no "Incredibly Easy Prey", so its tier table is one entry shorter.
+constexpr uint16 kCheckMessageFirst       = 170;
+constexpr uint16 kCheckMessageLast        = 178;
+constexpr uint32 kCheckIncrediblyEasyPrey = 0x41;
+constexpr uint32 kCheckIncrediblyTough    = 0x47;
 
 // True if the container and slot exist on the 2010 client.
 auto itemSlotValid(const uint8 container, const uint8 slot) -> bool
@@ -132,11 +138,29 @@ auto itemSubcontainer(MapSession* /* PSession */, CBasicPacket& /* packet */) ->
     return Result::Drop;
 }
 
-// 0x029 - GP_SERV_BATTLE_MESSAGE
-// Bounds check the message number for the 2010 client.
+// 0x029 - GP_SERV_BATTLE_MESSAGE.
 auto battleMessage(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 {
-    return packet.ref<uint16>(0x18) < kBattleMessages ? Result::Pass : Result::Drop;
+    // Bounds check the message number for the 2010 client
+    const uint16 messageNum = packet.ref<uint16>(0x18);
+    if (messageNum >= kBattleMessages)
+    {
+        return Result::Drop;
+    }
+
+    // The 'Incredibly Easy Prey' and 'Very Easy Prey' values were added in Aug 6, 2013 and Dec 10, 2021.
+    // Shift the /check tiers down one to match the pre-2013 tier table so that 'Incredibly Easy Prey'
+    // shows up as 'Easy Prey', and the rest don't get off-by-1ed.
+    if (messageNum >= kCheckMessageFirst && messageNum <= kCheckMessageLast)
+    {
+        auto& tier = packet.ref<uint32>(0x10);
+        if (tier > kCheckIncrediblyEasyPrey && tier <= kCheckIncrediblyTough)
+        {
+            tier -= 1;
+        }
+    }
+
+    return Result::Pass;
 }
 
 // 0x02D - BATTLE_MESSAGE2
@@ -422,6 +446,45 @@ auto shopBuy(MapSession* /* PSession */, CBasicPacket& packet) -> Result
     return packet.ref<uint16>(0x04) < kShopSlots ? Result::Pass : Result::Drop;
 }
 
+// Today's map sellers (scripts/globals/maps.lua) send owned maps in params 0-2, one bit per mapInfo slot.
+// The 2010 event reads only param 0, where a set bit hides that menu option: bit 0 is Cancel, bit 1 the
+// explanation, and bits 2 and up the seller's maps in menu order. It sets params 1-3 to its own prices.
+// Returns false if the event is not a map seller's.
+auto mapVendorParams(CBasicPacket& packet, const uint16 zone, const uint16 event) -> bool
+{
+    constexpr size_t kParams = 0x08; // 8 u32 params
+    constexpr size_t kMasks  = 3;    // params 0-2: owned maps, 32 slots each
+
+    const auto menu = ids::getMapVendorOptions(zone, event);
+    if (menu.empty())
+    {
+        return false;
+    }
+
+    const uint32 owned[kMasks] = {
+        packet.ref<uint32>(kParams),
+        packet.ref<uint32>(kParams + 4),
+        packet.ref<uint32>(kParams + 8),
+    };
+
+    uint32 hide = 0;
+    for (size_t i = 0; i < menu.size(); ++i)
+    {
+        const auto slot = menu[i].slot;
+        if (slot / 32 < kMasks && (owned[slot / 32] >> (slot % 32)) & 1)
+        {
+            hide |= 1u << (i + 2);
+        }
+    }
+
+    packet.ref<uint32>(kParams) = hide;
+    for (size_t i = 1; i < 8; ++i)
+    {
+        packet.ref<uint32>(kParams + i * 4) = 0;
+    }
+    return true;
+}
+
 // 0x032 - GP_SERV_EVENT
 // 0x033 - GP_SERV_EVENTSTR
 // 0x034 - GP_SERV_EVENTNUM
@@ -430,6 +493,7 @@ auto shopBuy(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 // gets a 0x052 release instead, and the server closes its side without the finish handler, as if the
 // event never started. No quest progress, no reward.
 // The Home Point event (8700) is sent as the zone's 2010 Home Point event.
+// A map seller's params are rewritten for its 2010 menu (0x034 only: the other two carry no params).
 template <size_t kEventNumOffset>
 auto eventGuard(MapSession* PSession, CBasicPacket& packet) -> Result
 {
@@ -447,6 +511,13 @@ auto eventGuard(MapSession* PSession, CBasicPacket& packet) -> Result
 
     if (ids::hasEvent(zone, event))
     {
+        if constexpr (kEventNumOffset == 0x2A)
+        {
+            if (mapVendorParams(packet, zone, event))
+            {
+                return Result::Rewritten;
+            }
+        }
         return Result::Pass;
     }
 

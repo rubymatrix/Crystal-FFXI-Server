@@ -34,6 +34,9 @@ public:
     HTTPServer(Scheduler& scheduler);
     ~HTTPServer();
 
+    // Makes the blocking listen() on the worker thread return. Safe to call more than once.
+    void stop();
+
     void LockingUpdate();
 
 private:

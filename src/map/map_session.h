@@ -65,7 +65,6 @@ struct MapSession
     std::unique_ptr<CCharEntity> PChar;                   // game char
     uint8                        shuttingDown       = 0;  // prevents double session closing
     uint32                       charID             = 0;
-    uint32                       accountID          = 0;
     uint32                       next_zone_id       = 0;
     bool                         forceLinkDead      = false; // Don't allow last_update tap if forced to die
     bool                         hasDecryptedPacket = false; // used to check if the client still needs an 0x00A

@@ -28,6 +28,7 @@
 
 #include "entities/char_entity.h"
 #include "event_info.h"
+#include "lua/luautils.h"
 #include "map_session.h"
 
 #include <algorithm>
@@ -119,17 +120,38 @@ auto equipSet(MapSession* /* PSession */, CBasicPacket& packet) -> Result
     return Result::Rewritten;
 }
 
-// 0x05B - EVENTEND
-// The Home Point event has a different number on the 2010 client, so it's changed to today's.
-// The 2010 client answers Yes with 0. That becomes 1 (set home point), anything else becomes 0.
-auto eventEnd(MapSession* PSession, CBasicPacket& packet) -> Result
+// A 2010 map seller's event sends no update. It ends with the key item of the map bought, or 0x40000000
+// when cancelled. Today's script (scripts/globals/maps.lua) sells on an update with option (slot << 16) | 1,
+// so that update runs here, and the end goes on as a cancel to close the event.
+auto mapVendorEnd(CCharEntity* PChar, CBasicPacket& packet) -> Result
 {
-    auto* PChar = PSession->PChar.get();
-    if (!PChar || !PChar->currentEvent || PChar->currentEvent->eventId != ids::kHomePointEvent)
+    constexpr uint32 kCancel = 0x40000000;
+
+    const auto event = packet.ref<uint16>(0x12);
+    if (packet.ref<uint16>(0x0E) != 0 || event != PChar->currentEvent->eventId)
     {
         return Result::Pass;
     }
 
+    const auto keyItem = packet.ref<uint32>(0x08);
+    for (const auto& map : ids::getMapVendorOptions(packet.ref<uint16>(0x10), event))
+    {
+        if (map.keyItem == keyItem)
+        {
+            luautils::OnEventUpdate(PChar, event, (static_cast<uint32>(map.slot) << 16) | 1);
+
+            packet.ref<uint32>(0x08) = kCancel;
+            return Result::Rewritten;
+        }
+    }
+
+    return Result::Pass;
+}
+
+// The Home Point event has a different number on the 2010 client, so it's changed to today's.
+// The 2010 client answers Yes with 0. That becomes 1 (set home point), anything else becomes 0.
+auto homePointEnd(CBasicPacket& packet) -> Result
+{
     const auto old = ids::homePointEvent(packet.ref<uint16>(0x10));
     if (!old || packet.ref<uint16>(0x12) != *old)
     {
@@ -142,6 +164,30 @@ auto eventEnd(MapSession* PSession, CBasicPacket& packet) -> Result
         packet.ref<uint32>(0x08) = packet.ref<uint32>(0x08) == 0 ? 1 : 0;
     }
     return Result::Rewritten;
+}
+
+// 0x05B - EVENTEND
+// The Home Point and map seller events end differently on the 2010 client (homePointEnd, mapVendorEnd).
+auto eventEnd(MapSession* PSession, CBasicPacket& packet) -> Result
+{
+    auto* PChar = PSession->PChar.get();
+    if (!PChar || !PChar->currentEvent)
+    {
+        return Result::Pass;
+    }
+
+    const auto eventId = PChar->currentEvent->eventId;
+    if (eventId == ids::kHomePointEvent)
+    {
+        return homePointEnd(packet);
+    }
+
+    if (ids::isMapVendorEvent(packet.ref<uint16>(0x10), static_cast<uint16>(eventId)))
+    {
+        return mapVendorEnd(PChar, packet);
+    }
+
+    return Result::Pass;
 }
 
 // 0x061 - CLISTATUS

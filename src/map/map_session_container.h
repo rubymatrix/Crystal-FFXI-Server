@@ -43,7 +43,6 @@ public:
     auto getSessionByChar(CCharEntity* PChar) -> MapSession*;
     auto getSessionByCharId(uint32 charId) -> MapSession*;
     auto getPendingSessionByCharId(uint32 charId) -> MapSession*;
-    auto getSessionByAccountId(uint32 accountId) -> MapSession*;
     auto getSessionByCharName(const std::string& name) -> MapSession*;
     auto getSessionsByIP(uint32 ip) -> std::vector<MapSession*>;
 

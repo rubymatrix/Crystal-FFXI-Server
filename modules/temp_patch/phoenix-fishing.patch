@@ -218,7 +218,7 @@ index 720ed37f36..fad3e74e44 100644
 +        return 0;
 +    }
 +
-+    return accountMeterFetch(PChar->account, varName);
++    return accountMeterFetch(PChar->polId, varName);
 +}
 +
 +void addFishingMeter(const CCharEntity* PChar, const std::string& varName, const int32 amount)
@@ -228,7 +228,7 @@ index 720ed37f36..fad3e74e44 100644
 +        return;
 +    }
 +
-+    accountMeterPersist(PChar->account, varName, getFishingMeter(PChar, varName) + amount, luautils::JstMidnight());
++    accountMeterPersist(PChar->polId, varName, getFishingMeter(PChar, varName) + amount, luautils::JstMidnight());
 +}
 +
 +// Nothing takes the bait once the angler has landed two hundred catches or worn themselves out
@@ -1229,8 +1229,8 @@ index 310e3bf968..38f76eae5d 100644
  
 +// The daily allowance lives on the account, which only a module knows how to reach. It hands
 +// these in at startup, and without them an angler is never held back
-+using AccountMeterFetch   = std::function<int32(uint32 accountId, const std::string& varName)>;
-+using AccountMeterPersist = std::function<void(uint32 accountId, const std::string& varName, int32 value, uint32 expiry)>;
++using AccountMeterFetch   = std::function<int32(uint64 polId, const std::string& varName)>;
++using AccountMeterPersist = std::function<void(uint64 polId, const std::string& varName, int32 value, uint32 expiry)>;
 +
 +void SetAccountMeterAccess(AccountMeterFetch fetch, AccountMeterPersist persist);
 +

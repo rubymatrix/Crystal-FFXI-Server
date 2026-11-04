@@ -76,17 +76,11 @@ def db_query(query):
 
 def setup_test_character():
     print("Setting up test character...")
-    PASSWORD_HASH = "$2a$12$piFoDKvu80KK68xLgQFpt.ZCqVPTjPmhSUfA31.Yw9n404dTsrR6q"
     try:
-        # Create an account
+        # Create a character on a content id of its own; the content id doubles as its POL ID
         cur.execute(
-            f"REPLACE INTO accounts (id, login, password, timecreate, timelastmodify, status, priv) \
-                VALUES(1000, 'admin1', '{PASSWORD_HASH}', NOW(), NOW(), 1, 1);"
-        )
-        # Create a character
-        cur.execute(
-            "REPLACE INTO chars (charid, accid, charname, pos_zone, nation, gmlevel) \
-                VALUES(1, 1000, 'Test', 0, 0, 5);"
+            "REPLACE INTO chars (charid, accid, pol_id, charname, pos_zone, nation, gmlevel) \
+                VALUES(1, 1000, 1000, 'Test', 0, 0, 5);"
         )
         # Set char_look (default is 0 and trips up scripting)
         cur.execute(

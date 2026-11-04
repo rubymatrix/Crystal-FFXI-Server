@@ -22,7 +22,7 @@
 #include "test_char.h"
 
 #include "common/cbasetypes.h"
-#include "login/login_helpers.h"
+#include "common/settings.h"
 #include "map/entities/base_entity.h"
 #include "map/entities/char_entity.h"
 #include "test_common.h"
@@ -31,9 +31,8 @@
 #include <array>
 #include <format>
 #include <limits>
+#include <stdexcept>
 #include <utility>
-
-#include <bcrypt/BCrypt.hpp>
 
 namespace
 {
@@ -88,7 +87,6 @@ void TestChar::clean(uint32 charId /* = 0 */)
     }();
 
     constexpr auto oneIdColumn = std::array{
-        "DELETE FROM accounts WHERE id BETWEEN ? AND ?",
         "DELETE FROM auction_house WHERE seller BETWEEN ? AND ?",
         "DELETE FROM audit_vendor WHERE seller BETWEEN ? AND ?",
     };
@@ -130,26 +128,15 @@ auto TestChar::create(const xi::ZoneId zoneId, const CharRace race) -> std::uniq
     uint32_t accId  = 0;
     uint32_t charId = 0;
 
-    auto rset = db::preparedStmt("SELECT max(id) FROM accounts");
+    // Each test character gets a content id (chars.accid) of its own, above any the lobby hands out
+    auto rset = db::preparedStmt("SELECT max(accid) FROM chars");
     FOR_DB_SINGLE_RESULT(rset)
     {
-        accId = std::max(MinTestAccId, rset->get<uint32>("max(id)") + 1);
+        accId = std::max(MinTestAccId, rset->get<uint32>("max(accid)") + 1);
     }
     else
     {
-        TestError("Unable to get max accounts ID");
-        return nullptr;
-    }
-
-    auto accountName = std::format("TEST_{}", accId);
-
-    rset = db::preparedStmt("INSERT INTO accounts (id, login, password) VALUES (?, ?, ?)",
-                            accId,
-                            accountName,
-                            BCrypt::generateHash("password"));
-    if (!rset)
-    {
-        TestError("Unable to create new account");
+        TestError("Unable to get max content ID");
         return nullptr;
     }
 
@@ -166,21 +153,51 @@ auto TestChar::create(const xi::ZoneId zoneId, const CharRace race) -> std::uniq
 
     const auto charName = std::format("T{}", charId);
 
-    char_mini mini = {
-        .m_name   = {},
-        .m_mjob   = static_cast<uint8>(xi::Job::WAR),
-        .m_zone   = zoneId,
-        .m_nation = NATION_SANDORIA,
-    };
+    // The rows the lobby API makes for a new character (lobby_api.cpp, createCharacter). The content id doubles as
+    // the test character's POL ID, so each one is an account of its own.
+    const auto created = db::transaction(
+        [&]()
+        {
+            const auto run = [](const char* query, auto&&... args)
+            {
+                if (!db::preparedStmt(query, std::forward<decltype(args)>(args)...))
+                {
+                    throw std::runtime_error(std::format("query failed: {}", query));
+                }
+            };
 
-    mini.m_look.race = static_cast<uint8>(race);
-    mini.m_look.size = static_cast<uint16>(CharSize::Small);
-    mini.m_look.face = static_cast<uint8>(CharFace::Face1A);
-
-    std::strncpy(reinterpret_cast<char*>(mini.m_name), charName.c_str(), sizeof(mini.m_name) - 1);
-    mini.m_name[sizeof(mini.m_name) - 1] = '\0';
-
-    loginHelpers::saveCharacter(accId, charId, &mini);
+            run("INSERT INTO chars(charid,accid,pol_id,charname,pos_zone,nation) VALUES(?, ?, ?, ?, ?, ?)",
+                charId,
+                accId,
+                static_cast<uint64>(accId),
+                charName,
+                static_cast<uint16>(zoneId),
+                static_cast<uint8>(NATION_SANDORIA));
+            run("INSERT INTO char_look(charid,face,race,size) VALUES(?, ?, ?, ?)",
+                charId,
+                static_cast<uint8>(CharFace::Face1A),
+                static_cast<uint8>(race),
+                static_cast<uint16>(CharSize::Small));
+            run("INSERT INTO char_stats(charid,mjob) VALUES(?, ?)", charId, static_cast<uint8>(xi::Job::WAR));
+            run("INSERT INTO char_exp(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
+            run("INSERT INTO char_flags(charid) VALUES(?) ON DUPLICATE KEY UPDATE disconnecting = disconnecting", charId);
+            run("INSERT INTO char_jobs(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
+            run("INSERT INTO char_points(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
+            run("INSERT INTO char_unlocks(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
+            run("INSERT INTO char_profile(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
+            run("INSERT INTO char_storage(charid) VALUES(?) ON DUPLICATE KEY UPDATE charid = charid", charId);
+            run("DELETE FROM char_inventory WHERE charid = ?", charId);
+            run("INSERT INTO char_inventory(charid) VALUES(?)", charId);
+            if (settings::get<bool>("main.NEW_CHARACTER_CUTSCENE"))
+            {
+                run("INSERT INTO char_vars(charid, varname, value) VALUES(?, ?, ?)", charId, "HQuest[newCharacterCS]notSeen", 1);
+            }
+        });
+    if (!created)
+    {
+        TestError("Unable to create test character");
+        return nullptr;
+    }
 
     auto testChar        = std::make_unique<TestChar>();
     testChar->accountId_ = accId;

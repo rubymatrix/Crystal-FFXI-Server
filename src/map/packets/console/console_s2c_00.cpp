@@ -150,12 +150,26 @@ auto charPc(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 auto charNpc(MapSession* /* PSession */, CBasicPacket& packet) -> Result
 {
     const auto actIndex = packet.ref<uint16>(0x08);
-    if (actIndex < 0x400 || (actIndex >= 0x700 && actIndex < 0x800))
+    if (!(actIndex < 0x400 || (actIndex >= 0x700 && actIndex < 0x800)))
     {
-        return Result::Pass;
+        return Result::Drop;
     }
 
-    return Result::Drop;
+    // Gathering points use the resource node models (2422-2424), added around 2014. The 2010 client
+    // has no files for them and draws nothing, so send its generic point model (52) instead.
+    // Standard look: size (0 = standard) at 0x30, model id at 0x32.
+    constexpr uint16 kOldPointModel = 52;
+    if (packet.getSize() >= 0x34 && packet.ref<uint16>(0x30) == 0)
+    {
+        const auto model = packet.ref<uint16>(0x32);
+        if (model >= 2422 && model <= 2424)
+        {
+            packet.ref<uint16>(0x32) = kOldPointModel;
+            return Result::Rewritten;
+        }
+    }
+
+    return Result::Pass;
 }
 
 // 0x012 - GP_SERV_GM
@@ -197,7 +211,7 @@ auto chatKind(const uint8 kind) -> uint8
         case 32:
             return 16; // linkshell, no speaker
         case 29:       // system 3
-            return 6;  // system 1
+            return 23;
         case 33:       // unity
         case 34:       // assist (J)
         case 35:       // assist (E)

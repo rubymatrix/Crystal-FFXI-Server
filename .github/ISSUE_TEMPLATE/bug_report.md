@@ -2,22 +2,32 @@
 name: "\U0001F41B Bug Report"
 about: Bug Report
 title: "\U0001F41B <Replace this with Bug Summary>"
-labels: bug, enhancement
+labels: bug
 assignees: ''
 
 ---
 
 ## Platform
 
-PS2? PCSX2? If latter, what version/fork?
+<!-- How were you playing Crystal? (Replace the [ ] with an [x]) -->
 
-## Effected Area
+- [ ] PS2/PS3
+- [ ] PCSX2
 
-Is it POL? FFXI Lobby? FFXI World?
+## Effected program
 
-## POLID and Character Name
+<!-- Where did this bug occur? (Replace the [ ] with an [x]) -->
 
-So we can track you down in the logs
+- [ ] PlayOnline
+- [ ] Final Fantasy XI - Lobby
+- [ ] Final Fantasy XI - World
+
+## POLID and character name if in-game
+
+<!-- So we can track you down in the logs  -->
+
+* **POLID:** <ID>
+* **Character (Optional):** <Name>
 
 ## Steps to reproduce
 

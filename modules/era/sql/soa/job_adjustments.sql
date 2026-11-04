@@ -76,3 +76,19 @@ UPDATE pet_skills SET pet_prepare_time = 3000 WHERE pet_skill_name IN (
     'lightning_breath',
     'hydro_breath'
 );
+
+------------------------------------
+-- Dancer
+-- Source: https://forum.square-enix.com/ffxi/threads/40059-Feb-18-2014-(JST)-Version-Update
+------------------------------------
+
+-- Waltzes: Revert to share a cooldown
+UPDATE abilities SET recastId = 217 WHERE name IN (
+    'curing_waltz_ii',
+    'curing_waltz_iii',
+    'curing_waltz_iv',
+    'curing_waltz_v',
+    'healing_waltz',
+    'divine_waltz',
+    'divine_waltz_ii'
+);

@@ -66,6 +66,15 @@ auto lowerBoundValue(std::vector<BoundValue>& params, T&& value) -> void
     {
         params.emplace_back(std::in_place_type<uint32>, static_cast<uint32>(value));
     }
+    else if constexpr (std::is_same_v<U, int64>)
+    {
+        params.emplace_back(std::in_place_type<int64>, static_cast<int64>(value));
+    }
+    else if constexpr (std::is_same_v<U, uint64>)
+    {
+        // Also size_t where it is the same type (MSVC, Linux): it used to bind as 32 bits and cut larger values
+        params.emplace_back(std::in_place_type<uint64>, static_cast<uint64>(value));
+    }
     else if constexpr (std::is_same_v<U, int16>)
     {
         params.emplace_back(std::in_place_type<int16>, static_cast<int16>(value));
@@ -104,8 +113,7 @@ auto lowerBoundValue(std::vector<BoundValue>& params, T&& value) -> void
     }
     else if constexpr (std::is_same_v<U, size_t>)
     {
-        // NOTE: Preserves legacy behaviour of binding size_t via a 32-bit unsigned. TODO: widen.
-        params.emplace_back(std::in_place_type<uint32>, static_cast<uint32>(value));
+        params.emplace_back(std::in_place_type<uint64>, static_cast<uint64>(value));
     }
     else if constexpr (is_blob_v<U>)
     {

@@ -71,6 +71,30 @@ constexpr HomePoint kClassicHomePoints[] = {
     { 252, 1000 },  // Norg
 };
 
+struct MapVendor
+{
+    uint16    zone;
+    uint16    event;
+    MapOption maps[8];
+    uint8     count;
+};
+
+// Each map seller's 2010 menu: { zone, event, { { keyItem, slot }, ... }, count }, maps in menu order from option 2.
+constexpr MapVendor kMapVendorLookup2010[] = {
+    { 50, 563, { { 1856, 58 }, { 1857, 59 }, { 1858, 60 }, { 1874, 68 } }, 4 },                                                // Riyadahf (Aht Urhgan Whitegate)
+    { 230, 595, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 397, 4 }, { 404, 5 }, { 405, 6 }, { 429, 7 } }, 8 },       // Violitte (Southern San d'Oria)
+    { 231, 567, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 397, 4 }, { 404, 5 }, { 405, 6 }, { 429, 7 } }, 8 },       // Elesca (Northern San d'Oria)
+    { 235, 210, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 395, 8 }, { 406, 9 }, { 407, 10 } }, 7 },                  // Karine (Bastok Markets)
+    { 236, 115, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 395, 8 }, { 406, 9 }, { 407, 10 } }, 7 },                  // Rex (Port Bastok)
+    { 240, 10000, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 408, 11 }, { 409, 12 }, { 399, 13 } }, 7 },              // Mhoji Roccoruh (Port Windurst)
+    { 241, 10000, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 408, 11 }, { 409, 12 }, { 399, 13 } }, 7 },              // Pehki Machumaht (Windurst Woods)
+    { 244, 10000, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 389, 16 }, { 400, 17 }, { 402, 18 }, { 413, 19 } }, 8 }, // Rusese (Upper Jeuno)
+    { 245, 10000, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 389, 16 }, { 400, 17 }, { 402, 18 }, { 413, 19 } }, 8 }, // Promurouve (Lower Jeuno)
+    { 247, 1006, { { 414, 32 }, { 427, 44 }, { 420, 37 } }, 3 },                                                               // Ashu Bolkhomo (Rabao)
+    { 248, 500, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 } }, 4 },                                                       // Lombaria (Selbina)
+    { 249, 500, { { 385, 0 }, { 386, 1 }, { 387, 2 }, { 388, 3 }, { 415, 14 }, { 430, 15 } }, 6 },                             // Ludwig (Mhaura)
+};
+
 } // namespace
 
 auto dialog(const uint16 zoneId, const uint16 messageId) -> std::optional<uint16>
@@ -108,6 +132,23 @@ auto homePointEvent(const uint16 zoneId) -> std::optional<uint16>
         }
     }
     return std::nullopt;
+}
+
+auto isMapVendorEvent(const uint16 zoneId, const uint16 eventId) -> bool
+{
+    return !getMapVendorOptions(zoneId, eventId).empty();
+}
+
+auto getMapVendorOptions(const uint16 zoneId, const uint16 eventId) -> std::span<const MapOption>
+{
+    for (const auto& vendor : kMapVendorLookup2010)
+    {
+        if (vendor.zone == zoneId && vendor.event == eventId)
+        {
+            return { vendor.maps, vendor.count };
+        }
+    }
+    return {};
 }
 
 auto mesNum(const uint16 zoneId, const uint16 mesNum) -> std::optional<uint16>

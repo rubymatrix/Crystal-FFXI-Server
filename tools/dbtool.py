@@ -188,13 +188,6 @@ settings, default_settings = populate_settings()
 
 # These are the 'protected' files
 player_data = [
-    "accounts.sql",
-    "accounts_banned.sql",
-    "accounts_files.sql",
-    "accounts_friends.sql",
-    "accounts_messages.sql",
-    "accounts_profile.sql",
-    "accounts_totp.sql",
     "auction_house_items.sql",
     "auction_house.sql",
     "audit_bazaar.sql",
@@ -232,9 +225,9 @@ player_data = [
     "fishing_contest.sql",
     "fishing_contest_entries.sql",
     "help_desk.sql",
-    "ip_exceptions.sql",
     "linkshell_concierge.sql",
     "linkshells.sql",
+    "pol_bans.sql",
     "server_variables.sql",
     "unity_system.sql",
 ]
@@ -1099,7 +1092,7 @@ def player_admin_menu():
 
 
 def announce_menu():
-    from tools.announce import send_server_message
+    from announce import send_server_message
 
     message = input("What message would you like to send to the whole server?\n> ")
     if (
@@ -1302,8 +1295,72 @@ def shutdown_process(name, timeout=30):
         signal_process(name, force=True)
 
 
+def parse_duration(text):
+    # "30s", "2m", "1m30s", or bare minutes ("2"); None if invalid or zero
+    match = re.fullmatch(r"(\d+)|(?:(\d+)m)?(?:(\d+)s)?", text.strip().lower())
+    if not match or not any(match.groups()):
+        return None
+    bare, minutes, seconds = match.groups()
+    total = (int(bare or 0) + int(minutes or 0)) * 60 + int(seconds or 0)
+    return total or None
+
+
+def format_duration(seconds):
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if minutes:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds:
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+    return " ".join(parts)
+
+
+def shutdown_countdown():
+    # Returns False if the shutdown was cancelled
+    if input("Send shutdown warning to users? [y/N] ").strip().lower() not in ("y", "yes"):
+        return True
+
+    if not is_process_running("xi_world"):
+        print_red("xi_world is not running, so players can't be warned")
+        return True
+
+    try:
+        from announce import send_server_message
+    except ImportError as e:
+        print_red(f"Can't send warnings ({e}), see tools/requirements.txt")
+        return True
+
+    message = input("Message to send to all players:\n> ").strip()
+    while (total := parse_duration(input("Time until shutdown [1m]: ") or "1m")) is None:
+        print_red("Use a time like 30s, 2m or 1m30s")
+
+    # Warn now, then at every 30 second mark left
+    marks = [total] + [s for s in range(total - total % 30, 0, -30) if s < total]
+    deadline = time.monotonic() + total
+    print(f"Shutting down in {format_duration(total)}. Press Ctrl+C to cancel.")
+
+    try:
+        for remaining in marks:
+            time.sleep(max(0, deadline - remaining - time.monotonic()))
+            warning = f"Server shutting down in {format_duration(remaining)}."
+            # Chat packets hold 150 bytes, so trim the message to keep the warning intact
+            room = 149 - len(warning) - 1
+            text = message.encode()[:room].decode(errors="ignore")
+            send_server_message(f"{text}\n{warning}" if text else warning)
+        time.sleep(max(0, deadline - time.monotonic()))
+    except KeyboardInterrupt:
+        send_server_message("Server shutdown cancelled.")
+        print("Shutdown cancelled")
+        return False
+
+    return True
+
+
 def shutdown_server():
     if input("Shut down all running server processes? [y/N] ").lower() != "y":
+        return
+
+    if not shutdown_countdown():
         return
 
     # Reverse of the launch order, so the map processes go down first

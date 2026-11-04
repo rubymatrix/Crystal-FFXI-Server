@@ -48,6 +48,8 @@ public:
     WorldEngine(Scheduler& scheduler, ZMQService& zmqService, EnableHTTPServer enableHTTPServer);
     ~WorldEngine() override;
 
+    void onShutdown() override;
+
     // TODO: Make all of these members private
     Scheduler& scheduler_;
 

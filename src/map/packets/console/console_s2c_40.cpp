@@ -48,6 +48,26 @@ constexpr uint8 kMaxJob = 20;
 // The 2010 client stores 31 ability recast timers.
 constexpr std::size_t kRecastSlots = 31;
 
+// Remapping recast ids that have changed between the 2010 client and modern XI.
+// The 2010 ids are from the client's ability data (ROM/121/52.DAT, offset 6 of each 0x30-byte entry).
+auto remapRecastId(const Recast id) -> uint8
+{
+    switch (static_cast<uint16>(id))
+    {
+        case 60: // Steal
+            return 61;
+        case 166: // Spirit Jump (shares Jump's timer)
+            return 158;
+        case 167: // Soul Jump (shares High Jump's timer)
+            return 159;
+        case 467: // Triple Shot
+            return 84;
+        default:
+            // Ids that don't fit in a byte would match an unrelated timer. 0xFF matches nothing.
+            return static_cast<uint16>(id) > 0xFF ? 0xFF : static_cast<uint8>(id);
+    }
+}
+
 // 0x043 - TALKNUMNAME
 // Bounds check the entity list for the 2010 client.
 auto talkNumName(MapSession*, CBasicPacket& packet) -> Result
@@ -227,7 +247,7 @@ void fillRecasts(CCharEntity* PChar, CBasicPacket& packet)
         {
             break;
         }
-        packet.ref<uint32>(0x04 + 4 * slot++) = seconds | reduction << 16 | (static_cast<uint32>(recast.ID) & 0xFF) << 24;
+        packet.ref<uint32>(0x04 + 4 * slot++) = seconds | reduction << 16 | static_cast<uint32>(remapRecastId(recast.ID)) << 24;
     }
 }
 

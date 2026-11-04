@@ -213,6 +213,11 @@ HTTPServer::HTTPServer(Scheduler& scheduler)
 
 HTTPServer::~HTTPServer()
 {
+    stop();
+}
+
+void HTTPServer::stop()
+{
     httpServer_.stop();
 }
 

@@ -224,7 +224,7 @@ void GMCallContainer::processCall(const CCharEntity* PChar) const
         .callId     = callId,
         .charId     = PChar->id,
         .charName   = PChar->name,
-        .accId      = PChar->accid,
+        .accId      = PChar->cid,
         .zoneId     = PChar->getZone(),
         .posX       = PChar->loc.p.x,
         .posY       = PChar->loc.p.y,

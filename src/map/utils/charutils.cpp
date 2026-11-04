@@ -51,8 +51,8 @@
 #include "ai/states/weaponskill_state.h"
 
 #include "packets/char_status.h"
-#include "packets/compat/profile.h"
 #include "packets/char_sync.h"
+#include "packets/compat/profile.h"
 #include "packets/s2c/0x009_message.h"
 #include "packets/s2c/0x00b_logout.h"
 #include "packets/s2c/0x01b_job_info.h"
@@ -329,6 +329,7 @@ auto LoadFromCharsSQL(CCharEntity* PChar) -> void
                                        "moghouse, "
                                        "boundary, "
                                        "accid, "
+                                       "pol_id, "
                                        "home_zone, "
                                        "home_rot, "
                                        "home_x, "
@@ -373,8 +374,8 @@ auto LoadFromCharsSQL(CCharEntity* PChar) -> void
         PChar->loc.p.z        = rset->get<float>("pos_z");
         PChar->m_moghouseID   = rset->get<uint32>("moghouse");
         PChar->loc.boundary   = rset->get<uint16>("boundary");
-        PChar->accid          = rset->get<uint32>("accid");
-        PChar->account        = PChar->accid; // the character's own until the lobby says whose it is (lobbyutils)
+        PChar->cid            = rset->get<uint32>("accid");
+        PChar->polId          = rset->get<uint64>("pol_id");
 
         PChar->profile.home_point.destination = rset->get<xi::ZoneId>("home_zone");
         PChar->profile.home_point.p.rotation  = rset->get<uint8>("home_rot");
@@ -6783,8 +6784,7 @@ auto SendToZone(CCharEntity* PChar, const xi::ZoneId zoneId) -> bool
     if (!compat::zoneAvailable(PChar->PSession, static_cast<uint16>(zoneId)) && static_cast<uint16>(zoneId) != homeZone &&
         compat::zoneAvailable(PChar->PSession, homeZone))
     {
-        ShowInfoFmt("charutils::SendToZone : {}'s client ({}) has no data for zone {}; sending them to their home point", PChar->name,
-                    PChar->PSession->client.describe(), zoneId);
+        ShowInfoFmt("charutils::SendToZone : {}'s client ({}) has no data for zone {}; sending them to their home point", PChar->name, PChar->PSession->client.describe(), zoneId);
         PChar->pushPacket<GP_SERV_COMMAND_SYSTEMMES>(0, 0, MsgStd::CouldNotEnter);
         PChar->loc.boundary    = 0;
         PChar->loc.p           = PChar->profile.home_point.p;
@@ -7466,30 +7466,24 @@ uint32 getCharIdFromName(const std::string& name)
     return 0;
 }
 
-uint32 getAccountIdFromName(const std::string& name)
+// The charid and POL ID of a live character; a POL ID of 0 means the lobby has not sent it yet
+auto getCharIdAndPolIdFromName(const std::string& name) -> std::pair<uint32, uint64>
 {
     TracyZoneScoped;
 
-    const auto rset = db::preparedStmt("SELECT accid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
+    const auto rset = db::preparedStmt("SELECT charid, pol_id FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
     FOR_DB_SINGLE_RESULT(rset)
     {
-        return rset->get<uint32>("accid");
-    }
-
-    return 0;
-}
-
-auto getCharIdAndAccountIdFromName(const std::string& name) -> std::pair<uint32, uint32>
-{
-    TracyZoneScoped;
-
-    const auto rset = db::preparedStmt("SELECT charid, accid FROM chars WHERE charname = ? AND accid <> 0 LIMIT 1", name);
-    FOR_DB_SINGLE_RESULT(rset)
-    {
-        return { rset->get<uint32>("charid"), rset->get<uint32>("accid") };
+        return { rset->get<uint32>("charid"), rset->get<uint64>("pol_id") };
     }
 
     return { 0, 0 };
+}
+
+// Whether a POL ID is the character's own PlayOnline account
+auto isSamePolAccount(const CCharEntity* PChar, const uint64 polId) -> bool
+{
+    return polId != 0 && polId == PChar->polId;
 }
 
 void forceSynthCritFail(const std::string& sourceFunction, CCharEntity* PChar)

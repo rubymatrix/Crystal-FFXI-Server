@@ -102,6 +102,7 @@ local commandTiers =
         'ah',
         'animatenpc',
         'animatesubnpc',
+        'banaccount',
         'cs',
         'cs2',
         'deleffect',
@@ -151,6 +152,7 @@ local commandTiers =
         'stun',
         'tp',
         'trustengage',
+        'unbanaccount',
         'yell',
     },
     [4] =

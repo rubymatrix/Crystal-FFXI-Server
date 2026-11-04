@@ -245,7 +245,7 @@ auto getFishingMeter(const CCharEntity* PChar, const std::string& varName) -> in
         return 0;
     }
 
-    return accountMeterFetch(PChar->account, varName);
+    return accountMeterFetch(PChar->polId, varName);
 }
 
 void addFishingMeter(const CCharEntity* PChar, const std::string& varName, const int32 amount)
@@ -255,7 +255,7 @@ void addFishingMeter(const CCharEntity* PChar, const std::string& varName, const
         return;
     }
 
-    accountMeterPersist(PChar->account, varName, getFishingMeter(PChar, varName) + amount, luautils::JstMidnight());
+    accountMeterPersist(PChar->polId, varName, getFishingMeter(PChar, varName) + amount, luautils::JstMidnight());
 }
 
 // Nothing takes the bait once the angler has landed two hundred catches or worn themselves out

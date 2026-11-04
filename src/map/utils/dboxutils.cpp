@@ -31,7 +31,6 @@
 #include "items/transactions/item_claim.h"
 #include "utils/charutils.h"
 #include "utils/itemutils.h"
-#include "utils/lobbyutils.h"
 
 #include "packets/c2s/0x04d_pbx.h"
 #include "packets/s2c/0x009_message.h"
@@ -150,8 +149,8 @@ void dboxutils::AddItemsToBeSent(CCharEntity* PChar, GP_CLI_COMMAND_PBX_BOXNO Bo
 
     if (PChar->UContainer->IsSlotEmpty(PostWorkNo))
     {
-        const auto [recvCharid, recvAccid] = charutils::getCharIdAndAccountIdFromName(receiverName);
-        if (recvCharid && recvAccid)
+        const auto [recvCharid, recvPolId] = charutils::getCharIdAndPolIdFromName(receiverName);
+        if (recvCharid)
         {
             if (PItem->hasFlag(ItemFlag::NoDelivery))
             {
@@ -160,8 +159,8 @@ void dboxutils::AddItemsToBeSent(CCharEntity* PChar, GP_CLI_COMMAND_PBX_BOXNO Bo
                     return;
                 }
 
-                // Different accounts (or no answer from the lobby's account service)
-                if (!lobbyutils::isSameAccount(PChar, recvAccid))
+                // Only to another character of the same PlayOnline account
+                if (!charutils::isSamePolAccount(PChar, recvPolId))
                 {
                     return;
                 }
@@ -777,10 +776,10 @@ void dboxutils::ConfirmNameBeforeSending(CCharEntity* PChar, GP_CLI_COMMAND_PBX_
         return;
     }
 
-    uint32 accid = charutils::getAccountIdFromName(receiverName);
-    if (accid)
+    const auto [recvCharid, recvPolId] = charutils::getCharIdAndPolIdFromName(receiverName);
+    if (recvCharid)
     {
-        if (lobbyutils::isSameAccount(PChar, accid))
+        if (charutils::isSamePolAccount(PChar, recvPolId))
         {
             PChar->pushPacket<GP_SERV_COMMAND_PBX_RESULT>(GP_CLI_COMMAND_PBX_COMMAND::Query, BoxNo, 0xFF, 0x02);
             PChar->pushPacket<GP_SERV_COMMAND_PBX_RESULT>(GP_CLI_COMMAND_PBX_COMMAND::Query, BoxNo, 0x01, 0x01);

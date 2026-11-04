@@ -24,6 +24,7 @@
 #include "common/cbasetypes.h"
 
 #include <optional>
+#include <span>
 
 // Maps server ids (from today's DATs) to the ids in the console client's own DATs, and back.
 // Answers come from the id maps of the active profile, so each console build gets its own numbering.
@@ -60,6 +61,16 @@ constexpr uint16 kHomePointEvent = 8700;
 // Returns the zone's pre-December 2013 Home Point Yes/No event (result 0 is Yes, 1 is No).
 // Returns nullopt if the client has event 8700 or the zone has no Home Point.
 auto homePointEvent(uint16 zoneId) -> std::optional<uint16>;
+
+// 2010 map vendor utils
+struct MapOption
+{
+    uint16 keyItem;
+    uint8  slot;
+};
+
+auto isMapVendorEvent(uint16 zoneId, uint16 eventId) -> bool;
+auto getMapVendorOptions(uint16 zoneId, uint16 eventId) -> std::span<const MapOption>;
 
 // Static entities are NPCs, mobs and doors: UniqueNo is 0x01000000 | zone << 12 | index, and ActIndex is the index.
 // Entities were added to the zones' name lists since 2010, so the indexes shifted.

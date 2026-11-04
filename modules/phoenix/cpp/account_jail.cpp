@@ -17,12 +17,13 @@
 namespace
 {
 
-// Deleted characters sit on accid 0, so a deleted target must not match all of them
+// Every live character of the target's PlayOnline account. A target the lobby has not given a POL ID yet
+// (pol_id 0) matches only itself.
 auto getAccountCharacters(const std::string& charName) -> sol::table
 {
     auto       characters = ::lua.create_table();
     const auto rset       = db::preparedStmt("SELECT alt.charname, alt.home_zone FROM chars c "
-                                             "INNER JOIN chars alt ON alt.accid = c.accid "
+                                             "INNER JOIN chars alt ON alt.accid <> 0 AND (alt.charid = c.charid OR (c.pol_id <> 0 AND alt.pol_id = c.pol_id)) "
                                              "WHERE c.charname = ? AND c.accid <> 0 "
                                              "ORDER BY alt.charid",
                                              charName);

@@ -1187,7 +1187,10 @@ xi.conquest.areAllies = function(nationA, nationB)
 end
 
 xi.conquest.outpostFee = function(player, region)
-    if not hasOutpost(player, region) then
+    if
+        outposts[region] == nil or
+        not hasOutpost(player, region)
+    then
         return 0
     end
 
@@ -1819,7 +1822,7 @@ end
 
 xi.conquest.teleporterOnEventUpdate = function(player, csid, option, teleporterEvent)
     if csid == teleporterEvent then
-        local region = option - 1073741829
+        local region = bit.band(option, 0xFF) - 5
         local fee    = xi.conquest.outpostFee(player, region)
         local cpFee  = fee / 10
 

@@ -38,6 +38,7 @@
 #include <map>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "packets/auction_history.h"
 #include "packets/auction_list.h"
@@ -78,6 +79,38 @@ auto ps2_2010Builds() -> const std::unordered_set<std::string>&
         return out;
     }();
     return builds;
+}
+
+// Load the item bin for this version so we can filter out the items from the auction list.
+// res/compat/ps2-20100904/items.bin
+auto ps2_2010Items() -> const std::vector<uint8>&
+{
+    static const auto items = []
+    {
+        const std::string  path = "res/compat/ps2-20100904/items.bin";
+        std::ifstream      file(path, std::ios::binary);
+        char               magic[8] = {};
+        std::vector<uint8> bits(0x2000);
+        if (!file.read(magic, sizeof(magic)) || std::memcmp(magic, "PS2ITM01", 8) != 0 ||
+            !file.read(reinterpret_cast<char*>(bits.data()), static_cast<std::streamsize>(bits.size())))
+        {
+            ShowWarningFmt("search: {} missing or invalid; auction house items are not filtered", path);
+            bits.clear();
+        }
+        return bits;
+    }();
+    return items;
+}
+
+// Does the 2010 PS2 client have this item? Items it lacks show as "." in its auction house lists.
+auto ps2_2010HasItem(const uint16 itemId) -> bool
+{
+    const auto& bits = ps2_2010Items();
+    if (bits.empty() || itemId == 0 || itemId == 0xFFFF)
+    {
+        return true;
+    }
+    return (bits[itemId >> 3] >> (itemId & 7)) & 1;
 }
 
 // The layout a search result has to take for the client behind this connection. The client is known by the version
@@ -595,7 +628,13 @@ void SearchHandler::HandleAuctionHouseRequest()
     }
 
     const CDataLoader PDataLoader;
-    const auto        ItemList = PDataLoader.GetAHItemsToCategory(AHCatID, sortKeys);
+    auto              ItemList = PDataLoader.GetAHItemsToCategory(AHCatID, sortKeys);
+
+    // Keep items the client has no record of out of its list.
+    if (searchLayoutFor(ipAddress_) == SearchListLayout::Ps2_2010)
+    {
+        std::erase_if(ItemList, [](const AuctionHouseItem& item) { return !ps2_2010HasItem(item.ItemID); });
+    }
 
     const std::size_t itemListSize = ItemList.size();
     const std::size_t PacketsCount = (itemListSize / 20) + (itemListSize % 20 != 0) + (itemListSize == 0);

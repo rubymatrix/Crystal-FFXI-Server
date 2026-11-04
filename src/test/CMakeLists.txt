@@ -86,7 +86,6 @@ xi_add_library(xi_test_lib ${SOURCES})
 target_include_directories(xi_test_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(xi_test_lib
     PUBLIC
-        xi_connect_lib
         xi_map_core
         xi_world_lib
         ${TEST_ONLY_EXTERNAL_LIBS}
