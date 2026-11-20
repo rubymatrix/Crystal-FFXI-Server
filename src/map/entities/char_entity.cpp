@@ -3049,7 +3049,10 @@ void CCharEntity::tryStartNextEvent()
         }
         else
         {
-            animation = this->isDead() ? xi::Animation::Death : xi::Animation::None;
+            // isDead() is also true while the character is changing zones, which happens when a cutscene
+            // ends with a warp. Only show the death pose when the character has really been knocked out.
+            const bool knockedOut = health.hp <= 0 || PAI->IsCurrentState<CDeathState>();
+            animation             = knockedOut ? xi::Animation::Death : xi::Animation::None;
         }
 
         sendServerStatus_ = true;
