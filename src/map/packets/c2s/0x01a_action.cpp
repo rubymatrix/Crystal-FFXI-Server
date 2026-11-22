@@ -211,6 +211,12 @@ void GP_CLI_COMMAND_ACTION::process(MapSession* PSession, CCharEntity* PChar) co
             CBaseEntity* PNpc = PChar->GetEntity(this->ActIndex, TYPE_NPC | TYPE_MOB | TYPE_TRUST);
             if (!PNpc)
             {
+                // No release is sent here, so the client keeps waiting and can't move.
+                ShowWarningFmt("GP_CLI_COMMAND_ACTION: {} talked to index {} (id {}) in zone {}, but nothing has that index. No release sent.",
+                               PChar->getName(),
+                               this->ActIndex,
+                               this->UniqueNo,
+                               static_cast<uint16>(PChar->getZone()));
                 return;
             }
 
@@ -271,10 +277,24 @@ void GP_CLI_COMMAND_ACTION::process(MapSession* PSession, CCharEntity* PChar) co
                 PChar->m_charHistory.npcInteractions++;
             }
 
-            if (!PChar->isNpcLocked())
+            const bool released = !PChar->isNpcLocked();
+            if (released)
             {
                 PChar->eventPreparation->reset();
                 PChar->pushPacket<GP_SERV_COMMAND_EVENTUCOFF>(PChar, GP_SERV_COMMAND_EVENTUCOFF_MODE::Standard);
+            }
+
+            // A client should open the command menu on a mob, not talk to it. If it talks anyway it waits for the release.
+            if (PNpc->objtype == TYPE_MOB)
+            {
+                ShowWarningFmt("GP_CLI_COMMAND_ACTION: {} talked to mob {} (index {}, status {}, distance {:.1f}) in zone {}. Release {}.",
+                               PChar->getName(),
+                               PNpc->getName(),
+                               PNpc->targid,
+                               static_cast<uint8>(PNpc->status),
+                               distance(PNpc->loc.p, PChar->loc.p),
+                               static_cast<uint16>(PChar->getZone()),
+                               released ? "sent" : "not sent, the character is in an event");
             }
         }
         break;

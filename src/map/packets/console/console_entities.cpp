@@ -139,6 +139,22 @@ auto apply(const Fields& fields, MapSession* PSession, CBasicPacket& packet, con
     const auto size    = packet.getSize();
     bool       changed = false;
 
+    // A dropped request from the 2010 client gets no answer. For a Talk that leaves the client unable to move.
+    // Drops on the way out aren't logged: unmapped mobs would log on every update.
+    const auto drop = [&](const Field& f, const uint32 was) -> Result
+    {
+        if (!toClient)
+        {
+            ShowWarningFmt("console: dropped c2s {:03X} from {}: 2010 id {:#x} at offset {:#04x} has no match in zone {}",
+                           packet.getType(),
+                           PSession->PChar->getName(),
+                           was,
+                           f.offset,
+                           zone);
+        }
+        return Result::Drop;
+    };
+
     for (const auto& f : fields)
     {
         if (f.kind == Kind::UniqueNo)
@@ -151,7 +167,7 @@ auto apply(const Fields& fields, MapSession* PSession, CBasicPacket& packet, con
             const auto now = toClient ? ids::uniqueNoToClient(was) : ids::uniqueNoFromClient(was);
             if (!now)
             {
-                return Result::Drop;
+                return drop(f, was);
             }
             changed |= *now != was;
             packet.ref<uint32>(f.offset) = *now;
@@ -170,7 +186,7 @@ auto apply(const Fields& fields, MapSession* PSession, CBasicPacket& packet, con
             const auto now = toClient ? ids::actIndexToClient(zone, was) : ids::actIndexFromClient(zone, was);
             if (!now)
             {
-                return Result::Drop;
+                return drop(f, was);
             }
             changed |= *now != was;
             packet.ref<uint16>(f.offset) = *now;

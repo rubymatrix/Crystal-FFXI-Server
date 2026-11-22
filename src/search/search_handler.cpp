@@ -60,7 +60,11 @@ auto ps2_2010Builds() -> const std::unordered_set<std::string>&
         std::string                     line;
         while (std::getline(file, line))
         {
-            line             = line.substr(0, line.find('#'));
+            if (const auto comment = line.find('#'); comment != std::string::npos)
+            {
+                line.resize(comment);
+            }
+
             const auto begin = line.find_first_not_of(" \t\r");
             if (begin == std::string::npos)
             {
@@ -612,7 +616,7 @@ void SearchHandler::HandleAuctionHouseHistory()
     const auto             HistoryList = PDataLoader.GetAHItemHistory(ItemID, stack != 0);
     const AuctionHouseItem item        = PDataLoader.GetAHItemFromItemID(ItemID);
 
-    CAHHistoryPacket PAHPacket = CAHHistoryPacket(item, stack);
+    CAHHistoryPacket PAHPacket = CAHHistoryPacket(item, stack, searchLayoutFor(ipAddress_));
 
     for (const auto& i : HistoryList)
     {

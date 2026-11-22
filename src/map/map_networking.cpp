@@ -54,6 +54,45 @@ auto hasLobbySession(const uint32 charId, const IPP& ipp) -> bool
     return rset && rset->rowsCount() != 0;
 }
 
+// Soft-lock test (GM command !talktest): the next datagram carrying a Talk (0x01A action 0) is ignored as if it was
+// lost on the way. Nothing in it is handled and no reply goes back, so the client sees a dropped datagram.
+auto talkTestLoses(const uint8* buff, const size_t size, MapSession* PSession) -> bool
+{
+    auto* PChar = PSession->PChar.get();
+    if (!PChar || PChar->GetLocalVar("TALK_TEST_NO_REPLY") == 0)
+    {
+        return false;
+    }
+
+    const auto u16 = [](const uint8* p)
+    {
+        return static_cast<uint16>(p[0] | p[1] << 8);
+    };
+
+    for (const uint8* p = buff + FFXI_HEADER_SIZE; p + 4 <= buff + size;)
+    {
+        const size_t len = (p[1] & 0xFE) * 2;
+        if (len == 0 || p + len > buff + size)
+        {
+            break;
+        }
+
+        if ((u16(p) & 0x1FF) == 0x01A && len >= 0x0C && u16(p + 0x0A) == 0)
+        {
+            ShowInfoFmt("talk test: lost datagram {} from {}: its Talk (packet {}) to id {:#x} index {:#x} is ignored, no reply sent",
+                        u16(buff),
+                        PChar->getName(),
+                        u16(p + 2),
+                        static_cast<uint32>(u16(p + 4) | u16(p + 6) << 16),
+                        u16(p + 8));
+            PChar->SetLocalVar("TALK_TEST_NO_REPLY", 0);
+            return true;
+        }
+        p += len;
+    }
+    return false;
+}
+
 } // namespace
 
 MapNetworking::MapNetworking(Scheduler& scheduler, MapStatistics& mapStatistics, MapConfig config)
@@ -110,6 +149,11 @@ void MapNetworking::handle_incoming_packet(ByteSpan buffer, const IPP& ipp)
         // DecryptCount of 0 means the main key decrypted the packet
         if (decryptCount == 0 && PSession->PChar)
         {
+            if (talkTestLoses(PBuff.data(), size, PSession))
+            {
+                return;
+            }
+
             // If the previous package was lost, then we do not collect a new one,
             // and send the previous packet again
             if (!parse(PBuff.data(), &size, PSession))
